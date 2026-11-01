@@ -1,0 +1,11 @@
+[
+  {
+    "id": "example-company",
+    "companyId": "example",
+    "companyType": "internet",
+    "url": "https://example.com/campus-jobs",
+    "enabled": false,
+    "detailLinkPattern": "/campus-jobs/\\d+",
+    "maxDetailPages": 20
+  }
+]

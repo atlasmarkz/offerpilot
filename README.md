@@ -7,7 +7,7 @@
 | 模块 | 状态 |
 |---|---|
 | `packages/shared`：画像/岗位 schema、硬条件过滤 | 可用，带测试 |
-| `apps/crawler`：11 家公司（14 个数据源）的岗位采集、硬条件抽取、人工审核队列 | **v1.0 可用**，见 [apps/crawler/README.md](apps/crawler/README.md) |
+| `apps/crawler`：12 家公司（16 个数据源）的岗位采集、硬条件抽取、人工审核队列 | **v1.0 可用**，见 [apps/crawler/README.md](apps/crawler/README.md) |
 | `apps/extension`：浏览器扩展（WXT）填表原型 | 原型，仅示例适配器 |
 | `supabase/migrations`：数据库结构（含行级安全） | 已设计，尚未接入采集器 |
 | Web 端（画像、匹配列表、看板）、企业端 | 未开始 |

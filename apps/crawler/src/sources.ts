@@ -4,10 +4,11 @@ import { CompanyType } from "@offerpilot/shared";
 import { renderPage } from "./browser";
 import { bilibiliSource } from "./platforms/bilibili";
 import { feishuSource } from "./platforms/feishu";
+import { janeStreetSource } from "./platforms/janestreet";
 import { jdSource } from "./platforms/jd";
 import { meituanSource } from "./platforms/meituan";
 import { tencentSource } from "./platforms/tencent";
-import { neteaseSource } from "./platforms/netease";
+import { neteaseHrSource, neteaseSource } from "./platforms/netease";
 import { mihoyoSource } from "./platforms/mihoyo";
 import { xiaohongshuSource } from "./platforms/xiaohongshu";
 import { politeFetch } from "./fetch";
@@ -24,7 +25,7 @@ const SourceConfig = z.object({
   /** 备注：为什么启用/停用、已知限制 */
   note: z.string().optional(),
   /** 专用平台适配器；generic 走网页文字加大模型抽取 */
-  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd", "bilibili", "netease", "xiaohongshu", "mihoyo"]).default("generic"),
+  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd", "bilibili", "netease", "xiaohongshu", "mihoyo", "janestreet", "neteasehr"]).default("generic"),
   /** 单个数据源本次最多取多少条，防止字节这类 7000 条的站跑太久 */
   maxJobs: z.number().int().positive().default(300),
   /** 岗位详情页（也是投递入口）模板，{id} 会被替换 */
@@ -108,6 +109,10 @@ export function createSource(cfg: SourceConfig): SourceAdapter {
       return xiaohongshuSource(cfg);
     case "mihoyo":
       return mihoyoSource(cfg);
+    case "janestreet":
+      return janeStreetSource(cfg);
+    case "neteasehr":
+      return neteaseHrSource(cfg);
     case "bilibili":
       return bilibiliSource(cfg);
     default:

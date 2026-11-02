@@ -161,5 +161,23 @@
     "mode": "browser",
     "maxJobs": 300,
     "note": "列表无职责/要求正文，只有届别说明；硬条件为空"
+  },
+  {
+    "id": "janestreet-campus",
+    "companyId": "janestreet",
+    "companyType": "finance",
+    "url": "https://www.janestreet.com/jobs/main.json",
+    "platform": "janestreet",
+    "mode": "http",
+    "note": "官方公开岗位 JSON；只保留 New Grad 和 Summer Internship；海外岗位，无硬条件"
+  },
+  {
+    "id": "netease-intern",
+    "companyId": "netease",
+    "companyType": "internet",
+    "url": "https://hr.163.com/job-list.html?workType=1",
+    "platform": "neteasehr",
+    "mode": "browser",
+    "maxJobs": 600
   }
 ]

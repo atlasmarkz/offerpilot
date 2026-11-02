@@ -57,3 +57,47 @@ export function neteaseSource(cfg: SourceConfig): SourceAdapter {
     map: (j) => mapNeteaseJob(j, cfg),
   });
 }
+
+/** 网易“日常实习生”（hr.163.com）queryPage 列表项，职责与要求在列表里，有独立详情页。 */
+export interface NeteaseHrJob {
+  id: number;
+  name: string;
+  requirement?: string | null;
+  description?: string | null;
+  workPlaceNameList?: string[] | null;
+}
+
+export function mapNeteaseHrJob(j: NeteaseHrJob) {
+  const req = (j.requirement ?? "").trim();
+  const text = [(j.description ?? "").trim(), req].filter(Boolean).join("\n");
+  const primary = extractRequirements(req);
+  const all = extractRequirements(text);
+  return {
+    title: j.name.trim(),
+    kind: "intern",
+    city: [...new Set((j.workPlaceNameList ?? []).map((c) => c.replace(/市$/, "").trim()).filter(Boolean))],
+    description: text.slice(0, MAX_TEXT),
+    requirements: {
+      minDegree: primary.minDegree ?? all.minDegree,
+      graduationYears: primary.graduationYears.length ? primary.graduationYears : all.graduationYears,
+      majors: primary.majors.length ? primary.majors : all.majors,
+      schoolTags: primary.schoolTags.length ? primary.schoolTags : all.schoolTags,
+      politicalStatus: [],
+      hukou: [],
+    },
+    applyUrl: `https://hr.163.com/job-detail.html?id=${j.id}&lang=zh`,
+  };
+}
+
+export function neteaseHrSource(cfg: SourceConfig): SourceAdapter {
+  return paginatedSource<NeteaseHrJob>(cfg, {
+    isListResponse: (res) => res.url().includes("/api/hr163/position/queryPage"),
+    parse: (body) => {
+      const data = (body as { data?: { list?: NeteaseHrJob[]; total?: number } }).data;
+      return { items: data?.list ?? [], total: data?.total };
+    },
+    idOf: (j) => String(j.id),
+    nextButton: "li.ant-pagination-next:not(.ant-pagination-disabled)",
+    map: (j) => mapNeteaseHrJob(j),
+  });
+}

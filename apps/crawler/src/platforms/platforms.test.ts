@@ -3,7 +3,8 @@ import { Job } from "@offerpilot/shared";
 import { mapFeishuPost, type FeishuPost } from "./feishu";
 import { mapBilibiliPosition } from "./bilibili";
 import { mapMihoyoJob } from "./mihoyo";
-import { mapNeteaseJob } from "./netease";
+import { mapJaneStreetJob, isCampus } from "./janestreet";
+import { mapNeteaseHrJob, mapNeteaseJob } from "./netease";
 import { mapXiaohongshuPosition } from "./xiaohongshu";
 import { mapTencentPosition, type TencentPosition } from "./tencent";
 
@@ -125,5 +126,20 @@ describe("bilibili / netease / xiaohongshu / mihoyo mappers", () => {
     expect((open.requirements as { graduationYears: number[] }).graduationYears).toEqual([]);
     expect(open.kind).toBe("intern");
     expect(valid(fixed)).toBe(true);
+  });
+
+  it("netease hr: intern with its own detail page", () => {
+    const m = mapNeteaseHrJob({ id: 79677, name: "运营实习生", requirement: "1、本科及以上学历，2027届及以后毕业", workPlaceNameList: ["北京市"] });
+    expect(m).toMatchObject({ kind: "intern", city: ["北京"], applyUrl: "https://hr.163.com/job-detail.html?id=79677&lang=zh" });
+    expect(valid(m)).toBe(true);
+  });
+
+  it("jane street: keeps only new grad and internships", () => {
+    const base = { id: 1, position: "Trader", city: "HKG" };
+    expect(isCampus({ ...base, availability: "Full-Time: Experienced" })).toBe(false);
+    expect(isCampus({ ...base, availability: "Full-Time: New Grad" })).toBe(true);
+    const m = mapJaneStreetJob({ ...base, availability: "Summer Internship", overview: "<p>Hi</p>" });
+    expect(m).toMatchObject({ kind: "intern", city: ["香港"] });
+    expect(valid(m)).toBe(true);
   });
 });

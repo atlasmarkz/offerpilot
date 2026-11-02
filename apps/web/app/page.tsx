@@ -80,6 +80,7 @@ export default function Home() {
   const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
   const [allCities, setAllCities] = useState(false);
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
+  const [ext, setExt] = useState<"unknown" | "ready" | "saved" | "failed">("unknown");
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
@@ -97,6 +98,19 @@ export default function Home() {
       })
       .catch((e: Error) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    // 浏览器扩展装了之后会在本页发消息；没装就收不到，按钮提示“未检测到”
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { source?: string; type?: string; ok?: boolean } | null;
+      if (e.source !== window || d?.source !== "offerpilot-ext") return;
+      if (d.type === "ready") setExt((s) => (s === "unknown" ? "ready" : s));
+      if (d.type === "profile-saved") setExt(d.ok ? "saved" : "failed");
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+  useEffect(() => setExt((s) => (s === "saved" || s === "failed" ? "ready" : s)), [form]);
 
   useEffect(() => {
     if (ready) save(PROFILE_KEY, form);
@@ -180,6 +194,13 @@ export default function Home() {
     } finally {
       setParsing(false);
     }
+  }
+
+  function syncToExtension() {
+    if (!profile.success) return;
+    window.postMessage({ source: "offerpilot-web", type: "profile", profile: profile.data }, window.location.origin);
+    // 1.5 秒内没有回执，说明没装扩展
+    setTimeout(() => setExt((s) => (s === "ready" || s === "unknown" ? "unknown" : s)), 1500);
   }
 
   const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
@@ -297,6 +318,20 @@ export default function Home() {
                 </label>
               ))}
             </div>
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <button className="btn" onClick={syncToExtension} disabled={!profile.success}>
+              同步到浏览器扩展
+            </button>
+            <span className="meta" role="status">
+              {ext === "saved"
+                ? "已同步。打开岗位的投递页，点扩展图标“填写当前页面”。"
+                : ext === "failed"
+                  ? "同步失败：画像格式不对。"
+                  : ext === "ready"
+                    ? "已检测到扩展。画像有改动后需要重新同步。"
+                    : "未检测到扩展时点击没有效果；填写由扩展完成，提交仍由你点击。"}
+            </span>
           </div>
         </section>
 

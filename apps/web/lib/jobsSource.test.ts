@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowToJob } from "./jobsSource";
+import { rowToJob, supabaseOrigin } from "./jobsSource";
 
 const row = {
   id: "abc",
@@ -23,5 +23,15 @@ describe("rowToJob", () => {
   it("drops malformed rows instead of throwing", () => {
     expect(rowToJob({ ...row, kind: "weird" })).toBeUndefined();
     expect(rowToJob({})).toBeUndefined();
+  });
+});
+
+describe("supabaseOrigin", () => {
+  it("keeps only the origin, so pasted paths do not break requests", () => {
+    expect(supabaseOrigin("https://abc.supabase.co")).toBe("https://abc.supabase.co");
+    expect(supabaseOrigin(" https://abc.supabase.co/rest/v1/ ")).toBe("https://abc.supabase.co");
+  });
+  it("rejects values that are not URLs", () => {
+    expect(() => supabaseOrigin("abc.supabase.co")).toThrow(/格式/);
   });
 });

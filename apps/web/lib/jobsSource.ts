@@ -24,14 +24,37 @@ export function rowToJob(row: Record<string, unknown>): Job | undefined {
 }
 
 /** 线上模式：从 Supabase 读（匿名公钥 + 行级安全，只会拿到已审核岗位）。 */
+/** 只取协议+域名：用户常把 /rest/v1 或控制台路径一起粘进来，那样请求会 404。 */
+export function supabaseOrigin(raw: string): string {
+  try {
+    return new URL(raw.trim()).origin;
+  } catch {
+    throw new Error("SUPABASE_URL 格式不对，应类似 https://xxxxxxxx.supabase.co");
+  }
+}
+
+/** 取出 PostgREST 返回的错误原因（如 Could not find the table ...），方便定位；不含密钥。 */
+async function reason(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { message?: string; hint?: string; code?: string };
+    return [j.code, j.message, j.hint].filter(Boolean).join(" ").slice(0, 200);
+  } catch {
+    return "";
+  }
+}
+
 async function fromSupabase(url: string, anonKey: string): Promise<Job[]> {
+  const origin = supabaseOrigin(url);
   const jobs: Job[] = [];
   for (let offset = 0; ; offset += PAGE) {
-    const res = await fetch(
-      `${url.replace(/\/$/, "")}/rest/v1/job_listing?select=*&order=id&limit=${PAGE}&offset=${offset}`,
-      { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, next: { revalidate: 300 } },
-    );
-    if (!res.ok) throw new Error(`数据库读取失败 HTTP ${res.status}`);
+    const res = await fetch(`${origin}/rest/v1/job_listing?select=*&order=id&limit=${PAGE}&offset=${offset}`, {
+      headers: { apikey: anonKey.trim(), Authorization: `Bearer ${anonKey.trim()}` },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) {
+      const why = await reason(res);
+      throw new Error(`数据库读取失败 HTTP ${res.status}${why ? `：${why}` : ""}`);
+    }
     const rows = (await res.json()) as Record<string, unknown>[];
     for (const r of rows) {
       const j = rowToJob(r);

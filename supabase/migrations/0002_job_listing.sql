@@ -22,3 +22,7 @@ create index job_listing_review_idx on job_listing (review_status, kind);
 alter table job_listing enable row level security;
 -- 匿名访问者（网页端）只能读已审核的岗位；写入只能用 service_role 密钥，它绕过 RLS。
 create policy listing_public_read on job_listing for select using (review_status = 'approved');
+
+-- 新建项目时关闭了“自动开放新表”，所以要显式授权：匿名访客只读（再受上面的行级安全限制，只看到已审核岗位）。
+-- 写入用 service_role 密钥，它自带权限，不需要在这里授权。
+grant select on job_listing to anon;

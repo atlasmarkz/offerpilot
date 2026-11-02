@@ -19,7 +19,7 @@
 
 ### 1. Supabase
 
-1. 新建项目，记下 **Project URL**。
+1. 新建项目，记下 **Project URL**。创建页的设置：Region 选新加坡或东京；Security 里保持勾选 Enable Data API、取消勾选 Automatically expose new tables、勾选 Enable automatic RLS；数据库密码自己保存好。
 2. 左侧 SQL Editor，把 `supabase/migrations/0002_job_listing.sql` 的内容粘进去运行（`0001` 暂时用不到，不用跑）。
 3. Settings → API，记下两个密钥：
    - `anon public`：可以放在网页端，受行级安全限制，只能读**已审核**的岗位。

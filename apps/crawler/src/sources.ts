@@ -2,10 +2,14 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { CompanyType } from "@offerpilot/shared";
 import { renderPage } from "./browser";
+import { bilibiliSource } from "./platforms/bilibili";
 import { feishuSource } from "./platforms/feishu";
 import { jdSource } from "./platforms/jd";
 import { meituanSource } from "./platforms/meituan";
 import { tencentSource } from "./platforms/tencent";
+import { neteaseSource } from "./platforms/netease";
+import { mihoyoSource } from "./platforms/mihoyo";
+import { xiaohongshuSource } from "./platforms/xiaohongshu";
 import { politeFetch } from "./fetch";
 import { htmlToText } from "./html";
 import type { RawPosting, SourceAdapter } from "./pipeline";
@@ -20,7 +24,7 @@ const SourceConfig = z.object({
   /** 备注：为什么启用/停用、已知限制 */
   note: z.string().optional(),
   /** 专用平台适配器；generic 走网页文字加大模型抽取 */
-  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd"]).default("generic"),
+  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd", "bilibili", "netease", "xiaohongshu", "mihoyo"]).default("generic"),
   /** 单个数据源本次最多取多少条，防止字节这类 7000 条的站跑太久 */
   maxJobs: z.number().int().positive().default(300),
   /** 岗位详情页（也是投递入口）模板，{id} 会被替换 */
@@ -29,6 +33,8 @@ const SourceConfig = z.object({
   /** 只保留招聘类型名称包含这些词的岗位（如同一入口混有社招时填 ["校招","实习"]） */
   recruitTypes: z.array(z.string()).default([]),
   defaultGraduationYears: z.array(z.number().int()).default([]),
+  /** 岗位数据里分不出校招/实习时的默认类型 */
+  defaultKind: z.enum(["fulltime", "intern"]).default("fulltime"),
   /** http：直接抓 HTML；browser：用 Chrome 渲染（JS 站点） */
   mode: z.enum(["http", "browser"]).default("http"),
   /** 同时抓取列表页里匹配该正则的详情链接（可选） */
@@ -96,6 +102,14 @@ export function createSource(cfg: SourceConfig): SourceAdapter {
       return meituanSource(cfg);
     case "jd":
       return jdSource(cfg);
+    case "netease":
+      return neteaseSource(cfg);
+    case "xiaohongshu":
+      return xiaohongshuSource(cfg);
+    case "mihoyo":
+      return mihoyoSource(cfg);
+    case "bilibili":
+      return bilibiliSource(cfg);
     default:
       return pageSource(cfg);
   }

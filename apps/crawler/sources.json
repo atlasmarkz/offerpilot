@@ -91,5 +91,75 @@
     ],
     "mode": "browser",
     "maxJobs": 300
+  },
+  {
+    "id": "bilibili-campus",
+    "companyId": "bilibili",
+    "companyType": "internet",
+    "url": "https://jobs.bilibili.com/campus/positions?type=3",
+    "platform": "bilibili",
+    "mode": "browser",
+    "maxJobs": 400,
+    "defaultGraduationYears": [
+      2027
+    ]
+  },
+  {
+    "id": "bilibili-intern",
+    "companyId": "bilibili",
+    "companyType": "internet",
+    "url": "https://jobs.bilibili.com/campus/positions?type=0",
+    "platform": "bilibili",
+    "mode": "browser",
+    "maxJobs": 400,
+    "defaultGraduationYears": []
+  },
+  {
+    "id": "netease-internet",
+    "companyId": "netease",
+    "companyType": "internet",
+    "url": "https://campus.163.com/app/job/position?id=103",
+    "platform": "netease",
+    "mode": "browser",
+    "maxJobs": 300,
+    "defaultGraduationYears": [
+      2027
+    ],
+    "note": "岗位无独立详情页，投递入口落在该项目的岗位列表页"
+  },
+  {
+    "id": "netease-games",
+    "companyId": "netease",
+    "companyType": "internet",
+    "url": "https://campus.game.163.com/app/job/position?id=102",
+    "platform": "netease",
+    "mode": "browser",
+    "maxJobs": 300,
+    "defaultGraduationYears": [
+      2027
+    ],
+    "note": "岗位无独立详情页，投递入口落在该项目的岗位列表页"
+  },
+  {
+    "id": "xiaohongshu-campus",
+    "companyId": "xiaohongshu",
+    "companyType": "internet",
+    "url": "https://job.xiaohongshu.com/campus/position",
+    "platform": "xiaohongshu",
+    "mode": "browser",
+    "maxJobs": 300,
+    "defaultGraduationYears": [
+      2027
+    ]
+  },
+  {
+    "id": "mihoyo-campus",
+    "companyId": "mihoyo",
+    "companyType": "internet",
+    "url": "https://campus.mihoyo.com/#/campus/position",
+    "platform": "mihoyo",
+    "mode": "browser",
+    "maxJobs": 300,
+    "note": "列表无职责/要求正文，只有届别说明；硬条件为空"
   }
 ]

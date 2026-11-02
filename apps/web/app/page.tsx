@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Profile, type CompanyType, type ExperienceAtom, type Job, type JobKind } from "@offerpilot/shared";
 import { companyName } from "../lib/companies";
+import { applyFilter, EMPTY_FILTER, facets, type ListFilter } from "../lib/filter";
 import { matchJobs } from "../lib/match";
 import type { ResumeDraft } from "../lib/resume";
 
@@ -75,6 +76,8 @@ export default function Home() {
   const [selected, setSelected] = useState<string[]>([]);
   const [shown, setShown] = useState(PAGE);
   const [ready, setReady] = useState(false);
+  const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
+  const [allCities, setAllCities] = useState(false);
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
@@ -98,7 +101,7 @@ export default function Home() {
   useEffect(() => {
     if (ready) save(SELECTED_KEY, selected);
   }, [selected, ready]);
-  useEffect(() => setShown(PAGE), [form, kind]);
+  useEffect(() => setShown(PAGE), [form, kind, filter]);
 
   const profile = useMemo(
     () =>
@@ -120,6 +123,17 @@ export default function Home() {
         : { matches: [], rejected: {} as Record<string, number> },
     [profile, jobs, kind],
   );
+
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const companyFacets = useMemo(() => facets(result.matches, (m) => [m.job.companyId]), [result.matches]);
+  const cityFacets = useMemo(() => facets(result.matches, (m) => m.job.city), [result.matches]);
+  const filtered = useMemo(
+    () => applyFilter(result.matches, filter, selectedSet),
+    [result.matches, filter, selectedSet],
+  );
+  const filterActive =
+    filter.query.trim() !== "" || filter.companies.length > 0 || filter.cities.length > 0 || filter.onlySelected;
+  const toggleIn = (k: "companies" | "cities", v: string) => setFilter((f) => ({ ...f, [k]: flip(f[k], v) }));
 
   const byId = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
   const chosen = selected.map((id) => byId.get(id)).filter((j): j is Job => !!j);
@@ -289,7 +303,9 @@ export default function Home() {
               实习
             </button>
             <span className="meta">
-              {error || jobs.length === 0 ? "" : `${result.matches.length} 个可投 / 已排除 ${rejectedTotal} 项不符`}
+              {error || jobs.length === 0
+                ? ""
+                : `${filterActive ? `筛出 ${filtered.length} / ` : ""}${result.matches.length} 个可投 / 已排除 ${rejectedTotal} 项不符`}
             </span>
           </div>
 
@@ -297,12 +313,78 @@ export default function Home() {
             岗位数据来自采集器，尚未人工审核，仅供本地试用。标“未识别”的条件是岗位没写清楚，投递前请自己核对。
           </div>
 
+          {jobs.length > 0 && (
+            <div className="card" style={{ marginBottom: 12 }} role="search" aria-label="检索与筛选">
+              <input
+                type="text"
+                placeholder="搜索岗位、公司、城市或职责关键词（空格分隔，需全部命中）"
+                aria-label="搜索岗位"
+                value={filter.query}
+                onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
+              />
+              <div className="field" style={{ marginTop: 12 }}>
+                <span className="lbl">公司</span>
+                <div className="chips">
+                  {companyFacets.map(({ value, count }) => (
+                    <label key={value}>
+                      <input
+                        type="checkbox"
+                        checked={filter.companies.includes(value)}
+                        onChange={() => toggleIn("companies", value)}
+                      />
+                      {companyName(value)} {count}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="field">
+                <span className="lbl">城市</span>
+                <div className="chips">
+                  {(allCities ? cityFacets : cityFacets.slice(0, 12)).map(({ value, count }) => (
+                    <label key={value}>
+                      <input
+                        type="checkbox"
+                        checked={filter.cities.includes(value)}
+                        onChange={() => toggleIn("cities", value)}
+                      />
+                      {value} {count}
+                    </label>
+                  ))}
+                  {cityFacets.length > 12 && (
+                    <button className="tab" onClick={() => setAllCities((v) => !v)}>
+                      {allCities ? "收起" : `更多 ${cityFacets.length - 12} 个`}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="chips" style={{ alignItems: "center" }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={filter.onlySelected}
+                    onChange={(e) => setFilter((f) => ({ ...f, onlySelected: e.target.checked }))}
+                  />
+                  只看已选
+                </label>
+                {filterActive && (
+                  <button className="btn ghost" onClick={() => setFilter(EMPTY_FILTER)}>
+                    清除筛选
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {error && <div className="card empty">{error}</div>}
           {!error && jobs.length === 0 && <div className="card empty">加载中…</div>}
           {jobs.length > 0 && (
             <div className="card">
-              {result.matches.length === 0 && <div className="empty">没有符合条件的岗位，试试放宽意向城市。</div>}
-              {result.matches.slice(0, shown).map(({ job, unknown }) => (
+              {filtered.length === 0 && (
+                <div className="empty">
+                  {filterActive ? "没有符合筛选条件的岗位，试试清除部分筛选。" : "没有符合条件的岗位，试试放宽意向城市。"}
+                </div>
+              )}
+              {filtered.slice(0, shown).map(({ job, unknown }) => (
                 <div className="job" key={job.id}>
                   <input
                     type="checkbox"
@@ -328,10 +410,10 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              {result.matches.length > shown && (
+              {filtered.length > shown && (
                 <div style={{ textAlign: "center", paddingTop: 12 }}>
                   <button className="btn ghost" onClick={() => setShown((n) => n + PAGE)}>
-                    再显示 {Math.min(PAGE, result.matches.length - shown)} 个
+                    再显示 {Math.min(PAGE, filtered.length - shown)} 个
                   </button>
                 </div>
               )}

@@ -81,6 +81,7 @@ export default function Home() {
   const [allCities, setAllCities] = useState(false);
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
   const [ext, setExt] = useState<"unknown" | "ready" | "saved" | "failed">("unknown");
+  const [mode, setMode] = useState<"file" | "supabase">("file");
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
@@ -95,6 +96,7 @@ export default function Home() {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error ?? "加载岗位失败");
         setJobs(body.jobs);
+        setMode(body.mode);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -217,7 +219,9 @@ export default function Home() {
             <span className="lbl">上传简历自动填写（PDF / Word / txt）</span>
             <label className="chips" style={{ gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>我同意把简历里的文字发送给本机配置的大模型服务做解析。文件不会被保存，也不会上传到别处。</span>
+              <span>
+                我同意把简历里的文字发送给大模型服务做解析。文件不会被保存。详见<a href="/privacy">隐私说明</a>。
+              </span>
             </label>
             <input
               type="file"
@@ -351,7 +355,9 @@ export default function Home() {
           </div>
 
           <div className="note">
-            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            {mode === "file" && (
+              <>
+                <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
               <input
                 type="checkbox"
                 checked={includeUnreviewed}
@@ -363,6 +369,9 @@ export default function Home() {
             {includeUnreviewed
               ? "未审核岗位来自采集器、尚未人工核对，仅供试用。"
               : "只显示人工审核通过的岗位（在 apps/crawler 里用 review 命令审核）。"}
+              </>
+            )}
+            {mode === "supabase" && "岗位均已人工审核，具体要求以官网为准。"}
             标“未识别”的条件是岗位没写清楚，投递前请自己核对。
           </div>
 

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { clientIp, resumeLimiter } from "../../../lib/rateLimit";
 import { fileToText, MAX_FILE_BYTES } from "../../../lib/extractText";
 import { MAX_RESUME_CHARS, normalizeDraft, RESUME_SYSTEM_PROMPT } from "../../../lib/resume";
 
@@ -28,6 +29,10 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) return fail("请选择简历文件", 400);
   if (form?.get("consent") !== "1") return fail("需要先同意把简历文字发送给大模型服务", 400);
   if (file.size > MAX_FILE_BYTES) return fail("文件超过 5MB", 413);
+
+  if (process.env.RESUME_ENABLED === "0") return fail("简历解析功能暂未开放，请手动填写画像", 503);
+  const limited = resumeLimiter().check(clientIp(req));
+  if (limited) return fail(limited, 429);
 
   const cfg = llmConfig();
   if (!cfg) return fail("服务端没有配置大模型（根目录 .env 的 LLM_BASE_URL / LLM_API_KEY / LLM_MODEL）", 503);

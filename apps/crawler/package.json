@@ -9,7 +9,8 @@
     "crawl": "tsx src/run.ts",
     "review": "tsx src/review.ts",
     "probe": "tsx src/probe.ts",
-    "discover": "tsx src/discover.ts"
+    "discover": "tsx src/discover.ts",
+    "sync": "tsx src/sync.ts"
   },
   "dependencies": {
     "@offerpilot/shared": "*",

@@ -1,0 +1,30 @@
+name: crawl-and-sync
+
+# 定时采集岗位并同步到 Supabase。需要在仓库 Settings → Secrets and variables → Actions 里配置：
+#   SUPABASE_URL、SUPABASE_SERVICE_KEY
+# 采集到的新岗位在库里默认是“待审核”，网页端只展示已审核的。
+# 这里用 --keep-review 同步：只更新内容，不会把你已通过的岗位重置。审核在本机做：
+#   本机 crawl → review approve-company ... → npm run sync（不带 --keep-review）把审核状态推上去。
+# 流程跑稳后再打开下面的 schedule。
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 20 * * 0" # 每周日 20:00 UTC（北京时间周一凌晨 4 点）
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # ubuntu 运行器自带 Google Chrome，采集器用系统 Chrome，不需要下载浏览器
+      - run: npm run crawl -w @offerpilot/crawler
+      - run: npm run sync -w @offerpilot/crawler -- --keep-review
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

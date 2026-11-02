@@ -110,3 +110,24 @@ describe("runPipeline with structured sources", () => {
     expect(result.accepted).toHaveLength(1);
   });
 });
+
+import { chunk, toRow } from "./sync";
+
+describe("sync helpers", () => {
+  it("maps a Job to a job_listing row and trims the description", () => {
+    const row = toRow(job({ description: "x".repeat(1000), city: ["上海"], deadline: "2026-12-01" }), 600);
+    expect(row).toMatchObject({ id: "abc12345", company_id: "c", cities: ["上海"], review_status: "pending" });
+    expect(row.description).toHaveLength(600);
+    expect(row.deadline).toBe("2026-12-01");
+  });
+
+  it("leaves review_status out when asked to keep the database's review state", () => {
+    const row = toRow(job(), 600, true);
+    expect("review_status" in row).toBe(false);
+    expect("review_status" in toRow(job(), 600, false)).toBe(true);
+  });
+
+  it("chunks lists", () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+});

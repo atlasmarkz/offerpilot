@@ -5,7 +5,12 @@ import { Profile } from "@offerpilot/shared";
  * 只接受本页面自己发的消息（同源、同窗口），并重新校验画像结构。
  */
 export default defineContentScript({
-  matches: ["http://localhost:3000/*"],
+  // 本地开发 + 构建时用 WXT_WEB_ORIGIN 指定的正式域名（如 https://offerpilot.vercel.app）。
+  // 只放你自己的域名：能给扩展发画像的页面都在这里列出
+  matches: [
+    "http://localhost:3000/*",
+    ...(import.meta.env.WXT_WEB_ORIGIN ? [`${String(import.meta.env.WXT_WEB_ORIGIN).replace(/\/$/, "")}/*`] : []),
+  ],
   main() {
     window.addEventListener("message", async (e: MessageEvent) => {
       if (e.source !== window || e.origin !== location.origin) return;

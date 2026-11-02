@@ -57,7 +57,8 @@ npm run sync -w @offerpilot/crawler                                    # 把岗�
 |---|---|
 | `SUPABASE_URL` | Supabase 项目地址 |
 | `SUPABASE_ANON_KEY` | anon 公钥 |
-| `LLM_BASE_URL` `LLM_API_KEY` `LLM_MODEL` | 简历解析用；不填则该功能返回“未配置” |
+| `LLM_BASE_URL` `LLM_API_KEY` `LLM_MODEL` | **可选**。用户可以在页面“模型设置”里填自己的 Base URL / API Key / 模型名（密钥只存在其浏览器里），那样费用由用户自己承担。这三项是你自备的兜底模型，只在用户没填时使用且受每日次数限制；**想让简历解析完全不花你的钱，就不要填** |
+| `ALLOW_PRIVATE_LLM_URLS` | 默认不设。生产环境会拒绝 http 和内网地址（防止服务器被用来访问内网）；仅在你自托管、需要连内网模型时设为 `1` |
 | `RESUME_PER_IP_LIMIT` | 每个 IP 每天解析次数，默认 5 |
 | `RESUME_DAILY_LIMIT` | 全站每天解析次数，默认 200 |
 | `RESUME_ENABLED` | 设为 `0` 可整体关闭简历解析 |
@@ -94,7 +95,7 @@ Vercel 项目 → Settings → Domains 添加你的域名，再按提示到域�
 |---|---|---|
 | 开始对企业收费、做商业化 | Vercel Hobby **不允许商业使用** | 升级 Vercel Pro（约 20 美元/月/成员），或迁到允许商用的免费平台（如 Cloudflare Pages，Next 需要额外适配） |
 | 月访问量上来，流量超过免费额度 | Vercel 约 100GB/月；岗位列表接口约 2–3MB，压缩后传输更小 | 看 Vercel Usage 页；岗位变多时把筛选改到服务端分页 |
-| 大模型账单增长 | 简历解析是真金白银 | 调低每日上限；要求登录后才能用；换更便宜的模型 |
+| 大模型账单增长 | 只有你配了自备模型才会发生；用户自带密钥时费用在用户那边 | 不配自备模型，或调低每日上限、要求登录后才能用 |
 | 需要账号、投递看板、云端保存画像 | 免费档的 Supabase 够用，但要接入 Supabase Auth，`0001` 里的表就是为此设计的 | 开发工作，不一定要付费 |
 | 数据库接近 500MB 或需要不暂停 | 现在约 4000 条岗位，只有几 MB | Supabase Pro（约 25 美元/月） |
 | 采集量变大 | GitHub Actions 私有仓库超过 2000 分钟 | 仓库转公开，或租一台小服务器跑采集 |

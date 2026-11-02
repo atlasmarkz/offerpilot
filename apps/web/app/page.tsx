@@ -10,6 +10,16 @@ import type { ResumeDraft } from "../lib/resume";
 const PROFILE_KEY = "offerpilot.profile.v1";
 const SELECTED_KEY = "offerpilot.selected.v1";
 const UNREVIEWED_KEY = "offerpilot.unreviewed.v1";
+const LLM_KEY = "offerpilot.llm.v1";
+
+interface LlmSettings {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  /** true：记在这个浏览器里；false：只在当前标签页会话里保留 */
+  remember: boolean;
+}
+const EMPTY_LLM: LlmSettings = { baseUrl: "", apiKey: "", model: "", remember: false };
 const PAGE = 50;
 
 const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企" };
@@ -57,6 +67,15 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
+function loadSession<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function save(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -82,6 +101,9 @@ export default function Home() {
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
   const [ext, setExt] = useState<"unknown" | "ready" | "saved" | "failed">("unknown");
   const [mode, setMode] = useState<"file" | "supabase">("file");
+  const [llm, setLlm] = useState<LlmSettings>(EMPTY_LLM);
+  const [llmMsg, setLlmMsg] = useState<{ ok: boolean; text: string }>();
+  const [testing, setTesting] = useState(false);
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
@@ -90,6 +112,9 @@ export default function Home() {
     setForm({ ...EMPTY, ...load<Partial<Form>>(PROFILE_KEY, {}) });
     setSelected(load<string[]>(SELECTED_KEY, []));
     setIncludeUnreviewed(load<boolean>(UNREVIEWED_KEY, true));
+    // 记住的优先；否则取本次会话里填过的
+    const remembered = load<LlmSettings | null>(LLM_KEY, null);
+    setLlm(remembered ?? loadSession<LlmSettings>(LLM_KEY, EMPTY_LLM));
     setReady(true);
     fetch("/api/jobs")
       .then(async (r) => {
@@ -117,6 +142,18 @@ export default function Home() {
   useEffect(() => {
     if (ready) save(PROFILE_KEY, form);
   }, [form, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    // 密钥只放在浏览器里：勾了“记住”存 localStorage，否则只存当前会话，关掉标签页就没了
+    try {
+      localStorage.removeItem(LLM_KEY);
+      sessionStorage.removeItem(LLM_KEY);
+      const empty = !llm.baseUrl && !llm.apiKey && !llm.model;
+      if (!empty) (llm.remember ? localStorage : sessionStorage).setItem(LLM_KEY, JSON.stringify(llm));
+    } catch {
+      /* 隐私模式等：只是不保存 */
+    }
+  }, [llm, ready]);
   useEffect(() => {
     if (ready) save(UNREVIEWED_KEY, includeUnreviewed);
   }, [includeUnreviewed, ready]);
@@ -170,6 +207,11 @@ export default function Home() {
       const body = new FormData();
       body.set("file", file);
       body.set("consent", "1");
+      if (llm.baseUrl || llm.apiKey || llm.model) {
+        body.set("llmBaseUrl", llm.baseUrl);
+        body.set("llmApiKey", llm.apiKey);
+        body.set("llmModel", llm.model);
+      }
       const res = await fetch("/api/resume", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "解析失败");
@@ -198,6 +240,24 @@ export default function Home() {
     }
   }
 
+  async function testLlm() {
+    setTesting(true);
+    setLlmMsg(undefined);
+    try {
+      const res = await fetch("/api/llm-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ llmBaseUrl: llm.baseUrl, llmApiKey: llm.apiKey, llmModel: llm.model }),
+      });
+      const data = await res.json();
+      setLlmMsg(res.ok ? { ok: true, text: "连接成功，可以用来解析简历了。" } : { ok: false, text: data.error ?? "测试失败" });
+    } catch {
+      setLlmMsg({ ok: false, text: "测试失败，请检查网络" });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   function syncToExtension() {
     if (!profile.success) return;
     window.postMessage({ source: "offerpilot-web", type: "profile", profile: profile.data }, window.location.origin);
@@ -217,6 +277,63 @@ export default function Home() {
           <h2>我的画像</h2>
           <div className="field">
             <span className="lbl">上传简历自动填写（PDF / Word / txt）</span>
+            <details>
+              <summary className="meta" style={{ cursor: "pointer" }}>
+                模型设置{llm.apiKey ? "（已填写）" : "（用你自己的大模型解析简历）"}
+              </summary>
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                <input
+                  type="text"
+                  aria-label="Base URL"
+                  placeholder="Base URL，如 https://api.openai.com/v1"
+                  value={llm.baseUrl}
+                  onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  aria-label="API Key"
+                  autoComplete="off"
+                  placeholder="API Key"
+                  value={llm.apiKey}
+                  onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
+                />
+                <input
+                  type="text"
+                  aria-label="模型名"
+                  placeholder="模型名，如 gpt-4o-mini"
+                  value={llm.model}
+                  onChange={(e) => setLlm((l) => ({ ...l, model: e.target.value }))}
+                />
+                <label className="chips" style={{ gap: 6, fontSize: 12, color: "var(--muted)" }}>
+                  <input
+                    type="checkbox"
+                    checked={llm.remember}
+                    onChange={(e) => setLlm((l) => ({ ...l, remember: e.target.checked }))}
+                  />
+                  <span>在这个浏览器里记住（不勾选则关闭标签页后清除）</span>
+                </label>
+                <span className="meta">
+                  支持任何兼容 OpenAI 接口的服务。密钥只保存在你的浏览器里，解析时随请求转发给你填的地址，我们不保存、不记录。请只在自己的设备上填写。
+                </span>
+                <div className="chips">
+                  <button
+                    className="btn ghost"
+                    onClick={testLlm}
+                    disabled={testing || !llm.baseUrl || !llm.apiKey || !llm.model}
+                  >
+                    {testing ? "测试中…" : "测试连接"}
+                  </button>
+                  <button className="btn ghost" onClick={() => { setLlm(EMPTY_LLM); setLlmMsg(undefined); }}>
+                    清除
+                  </button>
+                </div>
+                {llmMsg && (
+                  <span className="meta" style={{ color: llmMsg.ok ? "var(--brand)" : "var(--warn)" }} role="status">
+                    {llmMsg.text}
+                  </span>
+                )}
+              </div>
+            </details>
             <label className="chips" style={{ gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>

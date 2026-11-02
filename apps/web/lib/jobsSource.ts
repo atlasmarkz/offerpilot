@@ -54,7 +54,8 @@ async function fromSupabase(url: string, anonKey: string): Promise<Job[]> {
   for (let offset = 0; ; offset += PAGE) {
     const res = await fetch(`${origin}/rest/v1/job_listing?select=*&order=id&limit=${PAGE}&offset=${offset}`, {
       headers: authHeaders(anonKey.trim()),
-      next: { revalidate: 300 },
+      // 不在 fetch 层缓存：空结果一旦被缓存，同步岗位后页面仍会空很久。缓存交给 /api/jobs 的响应头，空结果不缓存
+      cache: "no-store",
     });
     if (!res.ok) {
       const why = await reason(res);

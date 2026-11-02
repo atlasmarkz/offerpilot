@@ -3,6 +3,7 @@ import { Job } from "@offerpilot/shared";
 import { mapFeishuPost, type FeishuPost } from "./feishu";
 import { mapBilibiliPosition } from "./bilibili";
 import { mapMihoyoJob } from "./mihoyo";
+import { mapCtripJob } from "./ctrip";
 import { mapJaneStreetJob, isCampus } from "./janestreet";
 import { mapNeteaseHrJob, mapNeteaseJob } from "./netease";
 import { mapXiaohongshuPosition } from "./xiaohongshu";
@@ -140,6 +141,18 @@ describe("bilibili / netease / xiaohongshu / mihoyo mappers", () => {
     expect(isCampus({ ...base, availability: "Full-Time: New Grad" })).toBe(true);
     const m = mapJaneStreetJob({ ...base, availability: "Summer Internship", overview: "<p>Hi</p>" });
     expect(m).toMatchObject({ kind: "intern", city: ["香港"] });
+    expect(valid(m)).toBe(true);
+  });
+
+  it("ctrip: strips the job code from the title and reads HTML requirements", () => {
+    const m = mapCtripJob({
+      fromId: "MJ037473",
+      jobTitle: "商务合作（2027届秋招）(MJ037473)",
+      cityName: "上海",
+      kindName: "应届校招生",
+      requirements: "<p>招聘对象：本、硕、博。</p><p>1、营销、新闻传媒专业优先；</p>",
+    });
+    expect(m).toMatchObject({ title: "商务合作（2027届秋招）", kind: "fulltime", city: ["上海"], applyUrl: "https://careers.ctrip.com/#/campus/job-detail/MJ037473" });
     expect(valid(m)).toBe(true);
   });
 });

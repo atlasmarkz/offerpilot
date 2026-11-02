@@ -179,5 +179,14 @@
     "platform": "neteasehr",
     "mode": "browser",
     "maxJobs": 600
+  },
+  {
+    "id": "ctrip-campus",
+    "companyId": "ctrip",
+    "companyType": "internet",
+    "url": "https://careers.ctrip.com/#/campus/jobList",
+    "platform": "ctrip",
+    "mode": "browser",
+    "maxJobs": 300
   }
 ]

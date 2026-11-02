@@ -51,6 +51,21 @@ describe("JobStore", () => {
   });
 });
 
+describe("JobStore.setStatusWhere", () => {
+  it("only changes pending jobs that match", () => {
+    const store = new JobStore(join(dir, "jobs.json"));
+    store.upsert([
+      job({ id: "a1", companyId: "x" }),
+      job({ id: "a2", companyId: "x", applyUrl: "https://example.com/2" }),
+      job({ id: "b1", companyId: "y", applyUrl: "https://example.com/3" }),
+    ]);
+    store.setStatus("a2", "rejected");
+    expect(store.setStatusWhere((j) => j.companyId === "x", "pending", "approved")).toBe(1);
+    const status = Object.fromEntries(store.list().map((j) => [j.id, j.reviewStatus]));
+    expect(status).toEqual({ a1: "approved", a2: "rejected", b1: "pending" });
+  });
+});
+
 describe("runPipeline with structured sources", () => {
   const raw = (over: Partial<RawPosting> = {}): RawPosting => ({
     sourceUrl: "https://corp.example/list",

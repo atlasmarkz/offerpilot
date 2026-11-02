@@ -26,9 +26,27 @@ switch (cmd) {
     console.log(`${cmd === "approve" ? "已通过" : "已拒绝"}: ${job.title}`);
     break;
   }
+  case "summary": {
+    // 按公司看审核进度，方便抽查后整家通过
+    const rows = new Map<string, { pending: number; approved: number; rejected: number }>();
+    for (const j of store.list()) {
+      const r = rows.get(j.companyId) ?? { pending: 0, approved: 0, rejected: 0 };
+      r[j.reviewStatus]++;
+      rows.set(j.companyId, r);
+    }
+    for (const [id, r] of rows) console.log(`${id.padEnd(14)} 待审 ${r.pending}  已通过 ${r.approved}  已拒绝 ${r.rejected}`);
+    break;
+  }
+  case "approve-company": {
+    if (!arg) throw new Error("用法: review approve-company <companyId>（先用 summary 和 list 抽查再通过）");
+    const n = store.setStatusWhere((j) => j.companyId === arg, "pending", "approved");
+    store.save();
+    console.log(`已通过 ${arg} 的 ${n} 条待审岗位`);
+    break;
+  }
   case "approved":
     show(store.list("approved"));
     break;
   default:
-    console.log("用法: review list | approve <id> | reject <id> | approved");
+    console.log("用法: review list | summary | approve <id> | reject <id> | approve-company <companyId> | approved");
 }

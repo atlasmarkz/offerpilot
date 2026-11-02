@@ -9,6 +9,7 @@ import type { ResumeDraft } from "../lib/resume";
 
 const PROFILE_KEY = "offerpilot.profile.v1";
 const SELECTED_KEY = "offerpilot.selected.v1";
+const UNREVIEWED_KEY = "offerpilot.unreviewed.v1";
 const PAGE = 50;
 
 const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企" };
@@ -78,6 +79,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
   const [allCities, setAllCities] = useState(false);
+  const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
@@ -85,6 +87,7 @@ export default function Home() {
   useEffect(() => {
     setForm({ ...EMPTY, ...load<Partial<Form>>(PROFILE_KEY, {}) });
     setSelected(load<string[]>(SELECTED_KEY, []));
+    setIncludeUnreviewed(load<boolean>(UNREVIEWED_KEY, true));
     setReady(true);
     fetch("/api/jobs")
       .then(async (r) => {
@@ -98,6 +101,9 @@ export default function Home() {
   useEffect(() => {
     if (ready) save(PROFILE_KEY, form);
   }, [form, ready]);
+  useEffect(() => {
+    if (ready) save(UNREVIEWED_KEY, includeUnreviewed);
+  }, [includeUnreviewed, ready]);
   useEffect(() => {
     if (ready) save(SELECTED_KEY, selected);
   }, [selected, ready]);
@@ -119,9 +125,9 @@ export default function Home() {
   const result = useMemo(
     () =>
       profile.success
-        ? matchJobs(profile.data, jobs, { kind, includeUnreviewed: true })
+        ? matchJobs(profile.data, jobs, { kind, includeUnreviewed })
         : { matches: [], rejected: {} as Record<string, number> },
-    [profile, jobs, kind],
+    [profile, jobs, kind, includeUnreviewed],
   );
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -310,7 +316,19 @@ export default function Home() {
           </div>
 
           <div className="note">
-            岗位数据来自采集器，尚未人工审核，仅供本地试用。标“未识别”的条件是岗位没写清楚，投递前请自己核对。
+            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={includeUnreviewed}
+                onChange={(e) => setIncludeUnreviewed(e.target.checked)}
+              />
+              包含未审核岗位
+            </label>
+            {" · "}
+            {includeUnreviewed
+              ? "未审核岗位来自采集器、尚未人工核对，仅供试用。"
+              : "只显示人工审核通过的岗位（在 apps/crawler 里用 review 命令审核）。"}
+            标“未识别”的条件是岗位没写清楚，投递前请自己核对。
           </div>
 
           {jobs.length > 0 && (
@@ -381,7 +399,11 @@ export default function Home() {
             <div className="card">
               {filtered.length === 0 && (
                 <div className="empty">
-                  {filterActive ? "没有符合筛选条件的岗位，试试清除部分筛选。" : "没有符合条件的岗位，试试放宽意向城市。"}
+                  {filterActive
+                    ? "没有符合筛选条件的岗位，试试清除部分筛选。"
+                    : !includeUnreviewed
+                      ? "还没有审核通过的岗位。可勾选“包含未审核岗位”试用，或先在 apps/crawler 里审核。"
+                      : "没有符合条件的岗位，试试放宽意向城市。"}
                 </div>
               )}
               {filtered.slice(0, shown).map(({ job, unknown }) => (
@@ -400,6 +422,7 @@ export default function Home() {
                     </h3>
                     <div className="meta">
                       <span className="badge">{companyName(job.companyId)}</span>
+                      {job.reviewStatus !== "approved" && <span className="badge warn">未审核</span>}
                       {job.city.join(" / ") || "城市未标注"}
                       {unknown.length > 0 && (
                         <span className="badge warn" style={{ marginLeft: 6 }}>

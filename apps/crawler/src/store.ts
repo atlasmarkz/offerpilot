@@ -48,6 +48,18 @@ export class JobStore {
     return job;
   }
 
+  /** 批量改状态（如抽查过某家公司后整家通过）。只动当前处于 from 状态的岗位，返回改动数量。 */
+  setStatusWhere(match: (job: Job) => boolean, from: ReviewStatus, to: ReviewStatus): number {
+    let n = 0;
+    for (const job of this.jobs.values()) {
+      if (job.reviewStatus === from && match(job)) {
+        this.jobs.set(job.id, { ...job, reviewStatus: to });
+        n++;
+      }
+    }
+    return n;
+  }
+
   save(): void {
     mkdirSync(dirname(this.path), { recursive: true });
     writeFileSync(this.path, JSON.stringify([...this.jobs.values()], null, 2), "utf8");

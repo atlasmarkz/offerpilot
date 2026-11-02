@@ -260,3 +260,33 @@ details.fold .body { margin-top: 10px; display: flex; flex-direction: column; ga
 
 /* 宽屏上已选清单在右栏，底部栏只在窄屏出现 */
 @media (min-width: 1181px) { .bar { display: none; } }
+
+/* ---------- 登录弹窗与账号菜单 ---------- */
+.modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
+  background: rgba(10, 14, 24, .5); backdrop-filter: blur(3px); }
+.modal { position: relative; width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); }
+.modal h2 { margin: 0 0 6px; font-size: 18px; }
+.modal-close { position: absolute; top: 14px; right: 16px; font-size: 16px; color: var(--muted); }
+.code-input { font-size: 22px; letter-spacing: 6px; text-align: center; }
+.link-btn:disabled { color: var(--faint); cursor: not-allowed; text-decoration: none; }
+
+.acct { position: relative; }
+.acct summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.acct summary::-webkit-details-marker { display: none; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff;
+  font-weight: 700; font-size: 13px; }
+.acct-email { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.acct-pop { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow); padding: 6px; z-index: 50; }
+.acct-status { padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
+.acct-status.err { color: var(--warn); }
+.acct-item { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: none; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+.acct-item:hover { background: var(--surface-2); }
+.acct-item.danger { color: var(--warn); }
+@media (max-width: 800px) { .acct-email { display: none; } .acct summary { padding-right: 3px; } }
+
+.conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 16px; background: var(--warn-soft);
+  border-color: transparent; color: var(--warn); }
+.conflict-actions { display: flex; gap: 8px; margin-left: auto; }

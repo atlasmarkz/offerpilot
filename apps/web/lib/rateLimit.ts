@@ -8,7 +8,18 @@ export interface Limiter {
   check(ip: string, now?: Date): string | undefined;
 }
 
-export function createLimiter(perIp: number, perDay: number): Limiter {
+export interface LimiterText {
+  /** 额度的名称，如“解析”“验证码” */
+  what: string;
+  /** 全站额度用完时的补充提示 */
+  tail: string;
+}
+
+export function createLimiter(
+  perIp: number,
+  perDay: number,
+  text: LimiterText = { what: "解析", tail: "请明天再试，或直接手动填写画像" },
+): Limiter {
   let day = "";
   let total = 0;
   const byIp = new Map<string, number>();
@@ -20,9 +31,9 @@ export function createLimiter(perIp: number, perDay: number): Limiter {
         total = 0;
         byIp.clear();
       }
-      if (total >= perDay) return "今天的解析额度已用完，请明天再试，或直接手动填写画像";
+      if (total >= perDay) return `今天的${text.what}额度已用完，${text.tail}`;
       const used = byIp.get(ip) ?? 0;
-      if (used >= perIp) return `你今天已解析 ${used} 次，达到上限，请明天再试或手动填写`;
+      if (used >= perIp) return `你今天已${text.what} ${used} 次，达到上限，请明天再试`;
       total++;
       byIp.set(ip, used + 1);
       return undefined;
@@ -41,4 +52,22 @@ export function resumeLimiter(): Limiter {
 
 export function clientIp(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
+}
+
+let sendLimiter: Limiter | undefined;
+let verifyLimiter: Limiter | undefined;
+
+/** 发送登录验证码：每个 IP 每天最多 AUTH_CODE_PER_IP（默认 20）次，全站 AUTH_CODE_DAILY（默认 500）次。 */
+export function authSendLimiter(): Limiter {
+  sendLimiter ??= createLimiter(num(process.env.AUTH_CODE_PER_IP, 20), num(process.env.AUTH_CODE_DAILY, 500), {
+    what: "发送验证码",
+    tail: "请明天再试",
+  });
+  return sendLimiter;
+}
+
+/** 校验验证码：防止暴力猜 6 位码。每个 IP 每天 60 次。 */
+export function authVerifyLimiter(): Limiter {
+  verifyLimiter ??= createLimiter(60, 5000, { what: "校验验证码", tail: "请明天再试" });
+  return verifyLimiter;
 }

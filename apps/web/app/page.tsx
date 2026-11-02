@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Job, JobKind } from "@offerpilot/shared";
+import { AccountMenu } from "../components/AccountMenu";
 import { FilterBar } from "../components/FilterBar";
+import { LoginDialog } from "../components/LoginDialog";
 import { JobDetail, SelectedPanel } from "../components/JobDetail";
 import { JobList } from "../components/JobList";
 import { ProfileCard, type ExtState } from "../components/ProfileCard";
 import { ResumePanel, type ResumePreview } from "../components/ResumePanel";
 import { applyFilter, EMPTY_FILTER, facets, type ListFilter } from "../lib/filter";
+import { useCloudSync } from "../hooks/useCloudSync";
 import { matchJobs } from "../lib/match";
 import { EMPTY_FORM, EMPTY_LLM, toProfile, type Form, type LlmSettings } from "../lib/profileForm";
 import type { ResumeDraft } from "../lib/resume";
@@ -33,6 +36,7 @@ export default function Home() {
   const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
   const [ext, setExt] = useState<ExtState>("unknown");
+  const [showLogin, setShowLogin] = useState(false);
 
   const [llm, setLlm] = useState<LlmSettings>(EMPTY_LLM);
   const [consent, setConsent] = useState(false);
@@ -100,6 +104,13 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // ---- 账号与云端同步 ----
+  const applyCloud = useCallback((c: { profile: Form; selected: string[] }) => {
+    setForm(c.profile);
+    setSelected(c.selected);
+  }, []);
+  const account = useCloudSync({ form, selected, ready, apply: applyCloud });
 
   // ---- 匹配与筛选 ----
   const profile = useMemo(() => toProfile(form), [form]);
@@ -205,9 +216,42 @@ export default function Home() {
             <b>{result.matches.length}</b> 个可投 · 共 {jobs.length} 个岗位
           </span>
         )}
+        {account.enabled && (
+          <AccountMenu
+            user={account.user}
+            status={account.status}
+            onLogin={() => setShowLogin(true)}
+            onLogout={() => void account.logout()}
+            onDelete={account.deleteAccount}
+          />
+        )}
       </header>
 
+      {showLogin && (
+        <LoginDialog
+          onClose={() => setShowLogin(false)}
+          onSuccess={(u) => {
+            account.onLoggedIn(u);
+            setShowLogin(false);
+          }}
+        />
+      )}
+
       <main className="app">
+        {account.conflict && (
+          <div className="panel conflict" role="alertdialog" aria-label="选择以哪份数据为准">
+            <b>云端和这台设备上都有数据，而且不一样。</b>
+            <span>你想以哪份为准？选好之前不会覆盖任何一边。</span>
+            <span className="conflict-actions">
+              <button className="btn sm" onClick={() => void account.resolveConflict("cloud")}>
+                用云端的（覆盖本机）
+              </button>
+              <button className="btn ghost sm" onClick={() => void account.resolveConflict("local")}>
+                用本机的（覆盖云端）
+              </button>
+            </span>
+          </div>
+        )}
         <div className="grid3">
           <div className="col-side">
             <ResumePanel
@@ -225,7 +269,14 @@ export default function Home() {
           </div>
 
           <div className="col-main">
-            <ProfileCard form={form} set={set} ext={ext} canSync={profile.success} onSync={syncToExtension} />
+            <ProfileCard
+              form={form}
+              set={set}
+              ext={ext}
+              canSync={profile.success}
+              onSync={syncToExtension}
+              cloud={!!account.user}
+            />
             <FilterBar
               filter={filter}
               setFilter={setFilter}

@@ -12,6 +12,8 @@ interface Props {
   ext: ExtState;
   canSync: boolean;
   onSync: () => void;
+  /** 已登录并开启云端同步 */
+  cloud?: boolean;
 }
 
 const EXT_TEXT: Record<ExtState, string> = {
@@ -21,13 +23,13 @@ const EXT_TEXT: Record<ExtState, string> = {
   unknown: "未安装扩展时点击没有效果。填写由扩展完成，提交仍由你自己点击。",
 };
 
-export function ProfileCard({ form, set, ext, canSync, onSync }: Props) {
+export function ProfileCard({ form, set, ext, canSync, onSync, cloud }: Props) {
   return (
     <section className="panel" aria-label="基础信息">
       <div className="panel-head">
         <span className="step">2</span>
         <h2>基础信息</h2>
-        <span className="hint">决定你能看到哪些岗位 · 只保存在本浏览器</span>
+        <span className="hint">决定你能看到哪些岗位 · {cloud ? "已登录，自动同步到云端" : "只保存在本浏览器"}</span>
       </div>
 
       <div className="form-grid">

@@ -1,0 +1,293 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Profile, type CompanyType, type Job, type JobKind } from "@offerpilot/shared";
+import { companyName } from "../lib/companies";
+import { matchJobs } from "../lib/match";
+
+const PROFILE_KEY = "offerpilot.profile.v1";
+const SELECTED_KEY = "offerpilot.selected.v1";
+const PAGE = 50;
+
+const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企" };
+const SCHOOL_TAGS = ["985", "211", "双一流"];
+
+interface Form {
+  name: string;
+  school: string;
+  schoolTags: string[];
+  major: string;
+  degree: "bachelor" | "master" | "phd";
+  graduationYear: number;
+  cities: string;
+  targetRoles: string;
+  targetCompanyTypes: CompanyType[];
+}
+
+const EMPTY: Form = {
+  name: "",
+  school: "",
+  schoolTags: [],
+  major: "",
+  degree: "bachelor",
+  graduationYear: 2027,
+  cities: "",
+  targetRoles: "",
+  targetCompanyTypes: [],
+};
+
+const split = (s: string) =>
+  s
+    .split(/[,，、\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+function load<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function save(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* 隐私模式等：只是不保存 */
+  }
+}
+
+function flip<T>(list: T[], v: T): T[] {
+  return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
+}
+
+export default function Home() {
+  const [form, setForm] = useState<Form>(EMPTY);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [error, setError] = useState<string>();
+  const [kind, setKind] = useState<JobKind>("fulltime");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [shown, setShown] = useState(PAGE);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setForm({ ...EMPTY, ...load<Partial<Form>>(PROFILE_KEY, {}) });
+    setSelected(load<string[]>(SELECTED_KEY, []));
+    setReady(true);
+    fetch("/api/jobs")
+      .then(async (r) => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error ?? "加载岗位失败");
+        setJobs(body.jobs);
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    if (ready) save(PROFILE_KEY, form);
+  }, [form, ready]);
+  useEffect(() => {
+    if (ready) save(SELECTED_KEY, selected);
+  }, [selected, ready]);
+  useEffect(() => setShown(PAGE), [form, kind]);
+
+  const profile = useMemo(
+    () =>
+      Profile.safeParse({
+        ...form,
+        cities: split(form.cities),
+        targetRoles: split(form.targetRoles),
+        name: form.name || "未命名",
+        school: form.school || "-",
+        major: form.major || "-",
+      }),
+    [form],
+  );
+
+  const result = useMemo(
+    () =>
+      profile.success
+        ? matchJobs(profile.data, jobs, { kind, includeUnreviewed: true })
+        : { matches: [], rejected: {} as Record<string, number> },
+    [profile, jobs, kind],
+  );
+
+  const byId = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
+  const chosen = selected.map((id) => byId.get(id)).filter((j): j is Job => !!j);
+  const toggle = (id: string) => setSelected((s) => flip(s, id));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
+
+  return (
+    <main className="wrap">
+      <h1>OfferPilot</h1>
+      <p className="sub">填写画像，只看你真正满足硬条件的校招 / 实习岗位。画像和勾选只保存在你的浏览器里。</p>
+
+      <div className="layout">
+        <section className="card" aria-label="我的画像">
+          <h2>我的画像</h2>
+          <div className="field">
+            <label htmlFor="school">学校</label>
+            <input id="school" type="text" value={form.school} onChange={(e) => set("school", e.target.value)} />
+          </div>
+          <div className="field">
+            <span className="lbl">院校标签</span>
+            <div className="chips">
+              {SCHOOL_TAGS.map((t) => (
+                <label key={t}>
+                  <input
+                    type="checkbox"
+                    checked={form.schoolTags.includes(t)}
+                    onChange={() => set("schoolTags", flip(form.schoolTags, t))}
+                  />
+                  {t}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="major">专业</label>
+            <input
+              id="major"
+              type="text"
+              placeholder="如 计算机科学与技术"
+              value={form.major}
+              onChange={(e) => set("major", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="degree">学历</label>
+            <select id="degree" value={form.degree} onChange={(e) => set("degree", e.target.value as Form["degree"])}>
+              <option value="bachelor">本科</option>
+              <option value="master">硕士</option>
+              <option value="phd">博士</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="year">毕业年份</label>
+            <input
+              id="year"
+              type="number"
+              min={2024}
+              max={2032}
+              value={form.graduationYear}
+              onChange={(e) => set("graduationYear", Number(e.target.value) || 2027)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cities">意向城市（逗号分隔，留空不限）</label>
+            <input
+              id="cities"
+              type="text"
+              placeholder="上海, 杭州"
+              value={form.cities}
+              onChange={(e) => set("cities", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="roles">意向岗位关键词（用于排序）</label>
+            <input
+              id="roles"
+              type="text"
+              placeholder="后端, 算法"
+              value={form.targetRoles}
+              onChange={(e) => set("targetRoles", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <span className="lbl">意向公司类型（用于排序）</span>
+            <div className="chips">
+              {(Object.keys(TYPE_LABEL) as CompanyType[]).map((t) => (
+                <label key={t}>
+                  <input
+                    type="checkbox"
+                    checked={form.targetCompanyTypes.includes(t)}
+                    onChange={() => set("targetCompanyTypes", flip(form.targetCompanyTypes, t))}
+                  />
+                  {TYPE_LABEL[t]}
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section aria-label="匹配岗位">
+          <div className="tabs">
+            <button className="tab" aria-pressed={kind === "fulltime"} onClick={() => setKind("fulltime")}>
+              全职
+            </button>
+            <button className="tab" aria-pressed={kind === "intern"} onClick={() => setKind("intern")}>
+              实习
+            </button>
+            <span className="meta">
+              {error || jobs.length === 0 ? "" : `${result.matches.length} 个可投 / 已排除 ${rejectedTotal} 项不符`}
+            </span>
+          </div>
+
+          <div className="note">
+            岗位数据来自采集器，尚未人工审核，仅供本地试用。标“未识别”的条件是岗位没写清楚，投递前请自己核对。
+          </div>
+
+          {error && <div className="card empty">{error}</div>}
+          {!error && jobs.length === 0 && <div className="card empty">加载中…</div>}
+          {jobs.length > 0 && (
+            <div className="card">
+              {result.matches.length === 0 && <div className="empty">没有符合条件的岗位，试试放宽意向城市。</div>}
+              {result.matches.slice(0, shown).map(({ job, unknown }) => (
+                <div className="job" key={job.id}>
+                  <input
+                    type="checkbox"
+                    aria-label={`选择 ${job.title}`}
+                    checked={selected.includes(job.id)}
+                    onChange={() => toggle(job.id)}
+                  />
+                  <div>
+                    <h3>
+                      <a href={job.applyUrl} target="_blank" rel="noreferrer">
+                        {job.title}
+                      </a>
+                    </h3>
+                    <div className="meta">
+                      <span className="badge">{companyName(job.companyId)}</span>
+                      {job.city.join(" / ") || "城市未标注"}
+                      {unknown.length > 0 && (
+                        <span className="badge warn" style={{ marginLeft: 6 }}>
+                          未识别：{unknown.join("、")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {result.matches.length > shown && (
+                <div style={{ textAlign: "center", paddingTop: 12 }}>
+                  <button className="btn ghost" onClick={() => setShown((n) => n + PAGE)}>
+                    再显示 {Math.min(PAGE, result.matches.length - shown)} 个
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {chosen.length > 0 && (
+        <div className="bar" role="region" aria-label="已选岗位">
+          <span>已选 {chosen.length} 个岗位</span>
+          <button className="btn ghost" onClick={() => setSelected([])}>
+            清空
+          </button>
+          <button
+            className="btn"
+            onClick={() => chosen.slice(0, 10).forEach((j) => window.open(j.applyUrl, "_blank", "noopener"))}
+          >
+            打开前 {Math.min(10, chosen.length)} 个投递页
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}

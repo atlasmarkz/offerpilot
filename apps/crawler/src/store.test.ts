@@ -111,7 +111,7 @@ describe("runPipeline with structured sources", () => {
   });
 });
 
-import { chunk, toRow } from "./sync";
+import { authHeaders, chunk, toRow } from "./sync";
 
 describe("sync helpers", () => {
   it("maps a Job to a job_listing row and trims the description", () => {
@@ -125,6 +125,11 @@ describe("sync helpers", () => {
     const row = toRow(job(), 600, true);
     expect("review_status" in row).toBe(false);
     expect("review_status" in toRow(job(), 600, false)).toBe(true);
+  });
+
+  it("sends new-style keys only in the apikey header", () => {
+    expect(authHeaders("sb_secret_x")).toEqual({ apikey: "sb_secret_x" });
+    expect(authHeaders("eyJ.a.b")).toEqual({ apikey: "eyJ.a.b", Authorization: "Bearer eyJ.a.b" });
   });
 
   it("chunks lists", () => {

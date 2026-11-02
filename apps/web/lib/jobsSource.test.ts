@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowToJob, supabaseOrigin } from "./jobsSource";
+import { authHeaders, rowToJob, supabaseOrigin } from "./jobsSource";
 
 const row = {
   id: "abc",
@@ -33,5 +33,12 @@ describe("supabaseOrigin", () => {
   });
   it("rejects values that are not URLs", () => {
     expect(() => supabaseOrigin("abc.supabase.co")).toThrow(/格式/);
+  });
+});
+
+describe("authHeaders", () => {
+  it("does not put new-style keys in Authorization", () => {
+    expect(authHeaders("sb_publishable_x")).toEqual({ apikey: "sb_publishable_x" });
+    expect(authHeaders("eyJ.a.b")).toHaveProperty("Authorization");
   });
 });

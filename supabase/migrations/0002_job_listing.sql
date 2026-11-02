@@ -25,8 +25,9 @@ drop policy if exists listing_public_read on job_listing;
 create policy listing_public_read on job_listing for select using (review_status = 'approved');
 
 -- 新建项目时关闭了“自动开放新表”，所以要显式授权：匿名访客只读（再受上面的行级安全限制，只看到已审核岗位）。
--- 写入用 service_role 密钥，它自带权限，不需要在这里授权。
+-- 写入用 service_role 密钥；它绕过行级安全，但关闭“自动开放新表”后表级权限仍要显式授予。
 grant select on job_listing to anon;
+grant select, insert, update, delete on job_listing to service_role;
 
 -- 让接口层重新读取表结构（新建表或改权限后缓存没刷新，会表现成 404）
 notify pgrst, 'reload schema';

@@ -25,6 +25,14 @@ export function toRow(job: Job, descriptionMax = 600, keepReview = false) {
   return keepReview ? row : { ...row, review_status: job.reviewStatus };
 }
 
+/**
+ * 新版密钥（sb_secret_ / sb_publishable_）不是 JWT，只能放在 apikey 头里；
+ * 再放进 Authorization: Bearer 会让网关把请求当成匿名角色。旧版 JWT 密钥两个头都要带。
+ */
+export function authHeaders(key: string): Record<string, string> {
+  return key.startsWith("sb_") ? { apikey: key } : { apikey: key, Authorization: `Bearer ${key}` };
+}
+
 export function chunk<T>(list: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
@@ -38,6 +46,7 @@ async function main() {
     /* 没有 .env 就只用进程环境变量（CI 里就是这样） */
   }
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
+  const supabaseOrigin = SUPABASE_URL ? new URL(SUPABASE_URL.trim()).origin : "";
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY)
     throw new Error("缺少环境变量 SUPABASE_URL / SUPABASE_SERVICE_KEY（service_role 密钥，只能放在本机或 CI 的密钥里）");
 
@@ -46,11 +55,10 @@ async function main() {
   // 默认以本机审核状态为准整体同步；--keep-review 只更新内容、不碰审核状态。没被刷新的旧岗位不删除
   let n = 0;
   for (const part of chunk(jobs, 500)) {
-    const res = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/job_listing?on_conflict=id`, {
+    const res = await fetch(`${supabaseOrigin}/rest/v1/job_listing?on_conflict=id`, {
       method: "POST",
       headers: {
-        apikey: SUPABASE_SERVICE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        ...authHeaders(SUPABASE_SERVICE_KEY.trim()),
         "Content-Type": "application/json",
         Prefer: "resolution=merge-duplicates,return=minimal",
       },

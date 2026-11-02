@@ -24,6 +24,11 @@ export function rowToJob(row: Record<string, unknown>): Job | undefined {
 }
 
 /** 线上模式：从 Supabase 读（匿名公钥 + 行级安全，只会拿到已审核岗位）。 */
+/** 新版密钥（sb_ 开头）不是 JWT，只能放 apikey 头；旧版 JWT 密钥两个头都带。 */
+export function authHeaders(key: string): Record<string, string> {
+  return key.startsWith("sb_") ? { apikey: key } : { apikey: key, Authorization: `Bearer ${key}` };
+}
+
 /** 只取协议+域名：用户常把 /rest/v1 或控制台路径一起粘进来，那样请求会 404。 */
 export function supabaseOrigin(raw: string): string {
   try {
@@ -48,7 +53,7 @@ async function fromSupabase(url: string, anonKey: string): Promise<Job[]> {
   const jobs: Job[] = [];
   for (let offset = 0; ; offset += PAGE) {
     const res = await fetch(`${origin}/rest/v1/job_listing?select=*&order=id&limit=${PAGE}&offset=${offset}`, {
-      headers: { apikey: anonKey.trim(), Authorization: `Bearer ${anonKey.trim()}` },
+      headers: authHeaders(anonKey.trim()),
       next: { revalidate: 300 },
     });
     if (!res.ok) {

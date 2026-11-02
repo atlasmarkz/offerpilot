@@ -199,7 +199,6 @@ export default function Home() {
             <img src="/logo.png" alt="OfferPilot" height={32} />
           </picture>
         </a>
-        <span className="tagline">只看你真正满足硬条件的校招 / 实习岗位</span>
         <span className="spacer" />
         {loaded && !error && (
           <span className="stat">

@@ -73,7 +73,6 @@ button { font: inherit; color: inherit; }
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 15px;
   background: linear-gradient(135deg, #5b7cfa, #3b5bdb 60%, #7a4dd8);
 }
-.topbar .tagline { color: var(--muted); font-size: 13px; }
 .topbar .spacer { flex: 1; }
 .stat { color: var(--muted); font-size: 13px; }
 .stat b { color: var(--text); font-weight: 650; }
@@ -100,7 +99,6 @@ button { font: inherit; color: inherit; }
   .col-side.col-detail { position: fixed; max-height: none; }
   .app { padding: 14px 12px 96px; }
   .topbar { padding: 10px 14px; }
-  .topbar .tagline { display: none; }
 }
 
 /* ---------- 卡片 ---------- */

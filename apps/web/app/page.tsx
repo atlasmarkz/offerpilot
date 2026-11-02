@@ -193,12 +193,12 @@ export default function Home() {
   return (
     <>
       <header className="topbar">
-        <div className="logo">
-          <span className="logo-mark" aria-hidden>
-            ✈
-          </span>
-          OfferPilot
-        </div>
+        <a className="logo" href="/" aria-label="OfferPilot 首页">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcSet="/logo-dark.png" />
+            <img src="/logo.png" alt="OfferPilot" height={32} />
+          </picture>
+        </a>
         <span className="tagline">只看你真正满足硬条件的校招 / 实习岗位</span>
         <span className="spacer" />
         {loaded && !error && (

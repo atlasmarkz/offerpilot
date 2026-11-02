@@ -3,6 +3,12 @@ export const metadata = { title: "隐私说明 · OfferPilot" };
 export default function Privacy() {
   return (
     <main className="wrap" style={{ maxWidth: 720 }}>
+      <a href="/" aria-label="OfferPilot 首页" style={{ display: "inline-block", marginBottom: 18, lineHeight: 0 }}>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcSet="/logo-dark.png" />
+          <img src="/logo.png" alt="OfferPilot" height={30} />
+        </picture>
+      </a>
       <h1>隐私说明</h1>
       <p className="sub">OfferPilot 对你的数据怎么处理，简单直说。</p>
 

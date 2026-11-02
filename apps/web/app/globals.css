@@ -66,7 +66,9 @@ button { font: inherit; color: inherit; }
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: 0.2px; }
+.logo { display: flex; align-items: center; line-height: 0; }
+.logo:hover { text-decoration: none; }
+.logo img { height: 32px; width: auto; display: block; }
 .logo-mark {
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 15px;
   background: linear-gradient(135deg, #5b7cfa, #3b5bdb 60%, #7a4dd8);

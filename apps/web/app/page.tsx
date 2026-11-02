@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Profile, type CompanyType, type Job, type JobKind } from "@offerpilot/shared";
+import { Profile, type CompanyType, type ExperienceAtom, type Job, type JobKind } from "@offerpilot/shared";
 import { companyName } from "../lib/companies";
 import { matchJobs } from "../lib/match";
+import type { ResumeDraft } from "../lib/resume";
 
 const PROFILE_KEY = "offerpilot.profile.v1";
 const SELECTED_KEY = "offerpilot.selected.v1";
@@ -22,6 +23,8 @@ interface Form {
   cities: string;
   targetRoles: string;
   targetCompanyTypes: CompanyType[];
+  /** 从简历解析出的经历，后续用于定制简历和简答题 */
+  experiences: ExperienceAtom[];
 }
 
 const EMPTY: Form = {
@@ -34,6 +37,7 @@ const EMPTY: Form = {
   cities: "",
   targetRoles: "",
   targetCompanyTypes: [],
+  experiences: [],
 };
 
 const split = (s: string) =>
@@ -71,6 +75,9 @@ export default function Home() {
   const [selected, setSelected] = useState<string[]>([]);
   const [shown, setShown] = useState(PAGE);
   const [ready, setReady] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
 
   useEffect(() => {
     setForm({ ...EMPTY, ...load<Partial<Form>>(PROFILE_KEY, {}) });
@@ -119,6 +126,42 @@ export default function Home() {
   const toggle = (id: string) => setSelected((s) => flip(s, id));
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  async function onResume(file: File | undefined) {
+    if (!file) return;
+    setParsing(true);
+    setResumeMsg(undefined);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      body.set("consent", "1");
+      const res = await fetch("/api/resume", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "解析失败");
+      const d = data.draft as ResumeDraft;
+      setForm((f) => ({
+        ...f,
+        school: d.school ?? f.school,
+        schoolTags: d.schoolTags.length ? d.schoolTags : f.schoolTags,
+        major: d.major ?? f.major,
+        degree: d.degree ?? f.degree,
+        graduationYear: d.graduationYear ?? f.graduationYear,
+        cities: d.cities.length ? d.cities.join(", ") : f.cities,
+        targetRoles: d.targetRoles.length ? d.targetRoles.join(", ") : f.targetRoles,
+        experiences: d.experiences,
+      }));
+      setResumeMsg({
+        ok: true,
+        text: `已填入，识别到 ${d.experiences.length} 段经历。请逐项核对下面的内容，识别不到的项保持原样。${
+          data.truncated ? "（简历过长，只解析了前面一部分）" : ""
+        }`,
+      });
+    } catch (e) {
+      setResumeMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setParsing(false);
+    }
+  }
+
   const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
 
   return (
@@ -129,6 +172,29 @@ export default function Home() {
       <div className="layout">
         <section className="card" aria-label="我的画像">
           <h2>我的画像</h2>
+          <div className="field">
+            <span className="lbl">上传简历自动填写（PDF / Word / txt）</span>
+            <label className="chips" style={{ gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>我同意把简历里的文字发送给本机配置的大模型服务做解析。文件不会被保存，也不会上传到别处。</span>
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt,.md"
+              disabled={!consent || parsing}
+              aria-label="上传简历"
+              onChange={(e) => {
+                void onResume(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            {parsing && <span className="meta">解析中，请稍候…</span>}
+            {resumeMsg && (
+              <span className="meta" style={{ color: resumeMsg.ok ? "var(--brand)" : "var(--warn)" }} role="status">
+                {resumeMsg.text}
+              </span>
+            )}
+          </div>
           <div className="field">
             <label htmlFor="school">学校</label>
             <input id="school" type="text" value={form.school} onChange={(e) => set("school", e.target.value)} />

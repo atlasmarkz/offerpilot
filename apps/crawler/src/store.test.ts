@@ -131,3 +131,22 @@ describe("sync helpers", () => {
     expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
   });
 });
+
+import { decide, pickSample, titleKey } from "./verifyLinks";
+
+describe("link verification helpers", () => {
+  it("builds a title key without leading tags", () => {
+    expect(titleKey("【2027校招】全域推荐算法工程师")).toBe("全域推荐算法");
+    expect(titleKey("后端开发工程师")).toBe("后端开发工程");
+    expect(titleKey("(MJ01) 前端  开发")).toBe("前端开发");
+  });
+  it("samples evenly and stably", () => {
+    expect(pickSample([1, 2, 3], 5)).toEqual([1, 2, 3]);
+    expect(pickSample(Array.from({ length: 100 }, (_, i) => i), 5)).toEqual([0, 20, 40, 60, 80]);
+  });
+  it("needs 80% of the sample to pass", () => {
+    expect(decide(4, 5)).toBe(true);
+    expect(decide(3, 5)).toBe(false);
+    expect(decide(0, 0)).toBe(false);
+  });
+});

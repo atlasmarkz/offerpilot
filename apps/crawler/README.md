@@ -10,6 +10,7 @@ npm run crawl -w @offerpilot/crawler -- --only meituan-campus   # 只跑一个
 npm run review -w @offerpilot/crawler -- list              # 查看待审核
 npm run review -w @offerpilot/crawler -- approve <id前缀>  # 通过（审核后才对用户可见）
 npm run review -w @offerpilot/crawler -- reject <id前缀>
+npm run verify -w @offerpilot/crawler                      # 自动验证：每个数据源抽 5 个岗位真实打开投递页，通过率 ≥80% 就整组批准（--dry 只检查）
 npm run review -w @offerpilot/crawler -- summary           # 按公司看审核进度
 npm run review -w @offerpilot/crawler -- approve-company <companyId>   # 抽查后整家通过（只动待审岗位）
 ```
@@ -17,6 +18,9 @@ npm run review -w @offerpilot/crawler -- approve-company <companyId>   # 抽查�
 结果写在 `data/jobs.json`（已被 git 忽略）。**所有岗位入库都是 `pending`**，必须人工审核通过才会展示给用户；重复抓取不会改变已有岗位的审核状态。
 
 依赖本机已安装的 Chrome（用 `playwright-core`，不下载浏览器）。结构化站点不需要大模型；只有 `platform: "generic"` 的网页类数据源才需要在根目录 `.env` 里配 `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL`。
+
+> **自动验证的边界**：只抽样核对“链接能打开且页面含岗位名”，不保证每个岗位都没下架；
+> 网易互娱/互联网项目没有独立详情页，只确认页面能打开。岗位内容以官网为准，页面上也提示了这一点。
 
 ## 已支持的站点
 

@@ -10,7 +10,8 @@
     "review": "tsx src/review.ts",
     "probe": "tsx src/probe.ts",
     "discover": "tsx src/discover.ts",
-    "sync": "tsx src/sync.ts"
+    "sync": "tsx src/sync.ts",
+    "verify": "tsx src/verifyLinks.ts"
   },
   "dependencies": {
     "@offerpilot/shared": "*",

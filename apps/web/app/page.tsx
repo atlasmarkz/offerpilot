@@ -334,7 +334,7 @@ export default function Home() {
                 )}
               </div>
             </details>
-            <label className="chips" style={{ gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
                 我同意把简历里的文字发送给大模型服务做解析。文件不会被保存。详见<a href="/privacy">隐私说明</a>。

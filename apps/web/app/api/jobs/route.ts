@@ -5,10 +5,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const { jobs, mode } = await loadJobs();
-    // 列表里只给个预览，正文留在官网；被驳回的绝不展示
+    // 只给要点预览（右侧详情用），完整正文留在官网；被驳回的绝不展示
     const visible = jobs
       .filter((j) => j.reviewStatus !== "rejected")
-      .map((j) => ({ ...j, description: j.description.slice(0, 300) }));
+      .map((j) => ({ ...j, description: j.description.slice(0, 600) }));
     return Response.json(
       { mode, jobs: visible },
       {

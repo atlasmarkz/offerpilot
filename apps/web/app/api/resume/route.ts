@@ -70,6 +70,8 @@ export async function POST(req: Request) {
     return Response.json({
       draft: normalizeDraft(parseJsonLoose(content)),
       chars: text.length,
+      // 给左侧预览用；只返回给发起请求的用户，不保存
+      text: text.slice(0, MAX_RESUME_CHARS),
       truncated: text.length > MAX_RESUME_CHARS,
     });
   } catch (e) {

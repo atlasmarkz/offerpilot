@@ -1,121 +1,53 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Profile, type CompanyType, type ExperienceAtom, type Job, type JobKind } from "@offerpilot/shared";
-import { companyName } from "../lib/companies";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Job, JobKind } from "@offerpilot/shared";
+import { FilterBar } from "../components/FilterBar";
+import { JobDetail, SelectedPanel } from "../components/JobDetail";
+import { JobList } from "../components/JobList";
+import { ProfileCard, type ExtState } from "../components/ProfileCard";
+import { ResumePanel, type ResumePreview } from "../components/ResumePanel";
 import { applyFilter, EMPTY_FILTER, facets, type ListFilter } from "../lib/filter";
 import { matchJobs } from "../lib/match";
+import { EMPTY_FORM, EMPTY_LLM, toProfile, type Form, type LlmSettings } from "../lib/profileForm";
 import type { ResumeDraft } from "../lib/resume";
+import { flip, load, remove, save } from "../lib/storage";
 
 const PROFILE_KEY = "offerpilot.profile.v1";
 const SELECTED_KEY = "offerpilot.selected.v1";
 const UNREVIEWED_KEY = "offerpilot.unreviewed.v1";
 const LLM_KEY = "offerpilot.llm.v1";
-
-interface LlmSettings {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  /** true：记在这个浏览器里；false：只在当前标签页会话里保留 */
-  remember: boolean;
-}
-const EMPTY_LLM: LlmSettings = { baseUrl: "", apiKey: "", model: "", remember: false };
 const PAGE = 50;
 
-const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企" };
-const SCHOOL_TAGS = ["985", "211", "双一流"];
-
-interface Form {
-  name: string;
-  school: string;
-  schoolTags: string[];
-  major: string;
-  degree: "bachelor" | "master" | "phd";
-  graduationYear: number;
-  cities: string;
-  targetRoles: string;
-  targetCompanyTypes: CompanyType[];
-  /** 从简历解析出的经历，后续用于定制简历和简答题 */
-  experiences: ExperienceAtom[];
-}
-
-const EMPTY: Form = {
-  name: "",
-  school: "",
-  schoolTags: [],
-  major: "",
-  degree: "bachelor",
-  graduationYear: 2027,
-  cities: "",
-  targetRoles: "",
-  targetCompanyTypes: [],
-  experiences: [],
-};
-
-const split = (s: string) =>
-  s
-    .split(/[,，、\s]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function loadSession<T>(key: string, fallback: T): T {
-  try {
-    const raw = sessionStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function save(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* 隐私模式等：只是不保存 */
-  }
-}
-
-function flip<T>(list: T[], v: T): T[] {
-  return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
-}
-
 export default function Home() {
-  const [form, setForm] = useState<Form>(EMPTY);
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string>();
   const [loaded, setLoaded] = useState(false);
+  const [mode, setMode] = useState<"file" | "supabase">("file");
   const [kind, setKind] = useState<JobKind>("fulltime");
   const [selected, setSelected] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string>();
   const [shown, setShown] = useState(PAGE);
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
-  const [allCities, setAllCities] = useState(false);
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
-  const [ext, setExt] = useState<"unknown" | "ready" | "saved" | "failed">("unknown");
-  const [mode, setMode] = useState<"file" | "supabase">("file");
+  const [ext, setExt] = useState<ExtState>("unknown");
+
   const [llm, setLlm] = useState<LlmSettings>(EMPTY_LLM);
-  const [llmMsg, setLlmMsg] = useState<{ ok: boolean; text: string }>();
-  const [testing, setTesting] = useState(false);
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [resumeMsg, setResumeMsg] = useState<{ ok: boolean; text: string }>();
+  const [preview, setPreview] = useState<ResumePreview>();
+  const previewUrl = useRef<string>();
 
+  // ---- 初始化：本地数据 + 岗位 ----
   useEffect(() => {
-    setForm({ ...EMPTY, ...load<Partial<Form>>(PROFILE_KEY, {}) });
+    setForm({ ...EMPTY_FORM, ...load<Partial<Form>>(PROFILE_KEY, {}) });
     setSelected(load<string[]>(SELECTED_KEY, []));
     setIncludeUnreviewed(load<boolean>(UNREVIEWED_KEY, true));
     // 记住的优先；否则取本次会话里填过的
-    const remembered = load<LlmSettings | null>(LLM_KEY, null);
-    setLlm(remembered ?? loadSession<LlmSettings>(LLM_KEY, EMPTY_LLM));
+    setLlm(load<LlmSettings | null>(LLM_KEY, null) ?? load<LlmSettings>(LLM_KEY, EMPTY_LLM, "session"));
     setReady(true);
     fetch("/api/jobs")
       .then(async (r) => {
@@ -126,10 +58,13 @@ export default function Home() {
         setLoaded(true);
       })
       .catch((e: Error) => setError(e.message));
+    return () => {
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    };
   }, []);
 
+  // ---- 浏览器扩展握手 ----
   useEffect(() => {
-    // 浏览器扩展装了之后会在本页发消息；没装就收不到，按钮提示“未检测到”
     const onMsg = (e: MessageEvent) => {
       const d = e.data as { source?: string; type?: string; ok?: boolean } | null;
       if (e.source !== window || d?.source !== "offerpilot-ext") return;
@@ -141,42 +76,33 @@ export default function Home() {
   }, []);
   useEffect(() => setExt((s) => (s === "saved" || s === "failed" ? "ready" : s)), [form]);
 
+  // ---- 持久化（只在浏览器里）----
   useEffect(() => {
     if (ready) save(PROFILE_KEY, form);
   }, [form, ready]);
   useEffect(() => {
-    if (!ready) return;
-    // 密钥只放在浏览器里：勾了“记住”存 localStorage，否则只存当前会话，关掉标签页就没了
-    try {
-      localStorage.removeItem(LLM_KEY);
-      sessionStorage.removeItem(LLM_KEY);
-      const empty = !llm.baseUrl && !llm.apiKey && !llm.model;
-      if (!empty) (llm.remember ? localStorage : sessionStorage).setItem(LLM_KEY, JSON.stringify(llm));
-    } catch {
-      /* 隐私模式等：只是不保存 */
-    }
-  }, [llm, ready]);
+    if (ready) save(SELECTED_KEY, selected);
+  }, [selected, ready]);
   useEffect(() => {
     if (ready) save(UNREVIEWED_KEY, includeUnreviewed);
   }, [includeUnreviewed, ready]);
   useEffect(() => {
-    if (ready) save(SELECTED_KEY, selected);
-  }, [selected, ready]);
+    if (!ready) return;
+    // 密钥只放在浏览器里：勾了“记住”存 localStorage，否则只存当前会话，关掉标签页就没了
+    remove(LLM_KEY);
+    if (llm.baseUrl || llm.apiKey || llm.model) save(LLM_KEY, llm, llm.remember ? "local" : "session");
+  }, [llm, ready]);
   useEffect(() => setShown(PAGE), [form, kind, filter]);
 
-  const profile = useMemo(
-    () =>
-      Profile.safeParse({
-        ...form,
-        cities: split(form.cities),
-        targetRoles: split(form.targetRoles),
-        name: form.name || "未命名",
-        school: form.school || "-",
-        major: form.major || "-",
-      }),
-    [form],
-  );
+  // Esc 关闭详情（窄屏上详情是浮层）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setActiveId(undefined);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
+  // ---- 匹配与筛选 ----
+  const profile = useMemo(() => toProfile(form), [form]);
   const result = useMemo(
     () =>
       profile.success
@@ -184,25 +110,28 @@ export default function Home() {
         : { matches: [], rejected: {} as Record<string, number> },
     [profile, jobs, kind, includeUnreviewed],
   );
-
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const companyFacets = useMemo(() => facets(result.matches, (m) => [m.job.companyId]), [result.matches]);
   const cityFacets = useMemo(() => facets(result.matches, (m) => m.job.city), [result.matches]);
-  const filtered = useMemo(
-    () => applyFilter(result.matches, filter, selectedSet),
-    [result.matches, filter, selectedSet],
-  );
+  const filtered = useMemo(() => applyFilter(result.matches, filter, selectedSet), [result.matches, filter, selectedSet]);
   const filterActive =
     filter.query.trim() !== "" || filter.companies.length > 0 || filter.cities.length > 0 || filter.onlySelected;
-  const toggleIn = (k: "companies" | "cities", v: string) => setFilter((f) => ({ ...f, [k]: flip(f[k], v) }));
+  const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
 
   const byId = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
-  const chosen = selected.map((id) => byId.get(id)).filter((j): j is Job => !!j);
-  const toggle = (id: string) => setSelected((s) => flip(s, id));
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const chosen = useMemo(() => selected.map((id) => byId.get(id)).filter((j): j is Job => !!j), [selected, byId]);
+  const active = activeId ? byId.get(activeId) : undefined;
+  const toggle = useCallback((id: string) => setSelected((s) => flip(s, id)), []);
+  const set = useCallback(<K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v })), []);
 
-  async function onResume(file: File | undefined) {
-    if (!file) return;
+  // ---- 简历 ----
+  const clearPreview = useCallback(() => {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = undefined;
+    setPreview(undefined);
+  }, []);
+
+  async function onResume(file: File) {
     setParsing(true);
     setResumeMsg(undefined);
     try {
@@ -218,6 +147,12 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "解析失败");
       const d = data.draft as ResumeDraft;
+
+      clearPreview();
+      const isPdf = file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) previewUrl.current = URL.createObjectURL(file);
+      setPreview({ name: file.name, kind: isPdf ? "pdf" : "text", url: previewUrl.current, text: data.text });
+
       setForm((f) => ({
         ...f,
         school: d.school ?? f.school,
@@ -231,7 +166,7 @@ export default function Home() {
       }));
       setResumeMsg({
         ok: true,
-        text: `已填入，识别到 ${d.experiences.length} 段经历。请逐项核对下面的内容，识别不到的项保持原样。${
+        text: `已填入基础信息，识别到 ${d.experiences.length} 段经历。请在中间核对，识别不到的项保持原样。${
           data.truncated ? "（简历过长，只解析了前面一部分）" : ""
         }`,
       });
@@ -242,24 +177,6 @@ export default function Home() {
     }
   }
 
-  async function testLlm() {
-    setTesting(true);
-    setLlmMsg(undefined);
-    try {
-      const res = await fetch("/api/llm-test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ llmBaseUrl: llm.baseUrl, llmApiKey: llm.apiKey, llmModel: llm.model }),
-      });
-      const data = await res.json();
-      setLlmMsg(res.ok ? { ok: true, text: "连接成功，可以用来解析简历了。" } : { ok: false, text: data.error ?? "测试失败" });
-    } catch {
-      setLlmMsg({ ok: false, text: "测试失败，请检查网络" });
-    } finally {
-      setTesting(false);
-    }
-  }
-
   function syncToExtension() {
     if (!profile.success) return;
     window.postMessage({ source: "offerpilot-web", type: "profile", profile: profile.data }, window.location.origin);
@@ -267,368 +184,162 @@ export default function Home() {
     setTimeout(() => setExt((s) => (s === "ready" || s === "unknown" ? "unknown" : s)), 1500);
   }
 
-  const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
+  const emptyText = filterActive
+    ? "没有符合筛选条件的岗位，试试清除部分筛选。"
+    : !includeUnreviewed
+      ? "还没有审核通过的岗位。可打开“包含未审核岗位”试用。"
+      : "没有符合条件的岗位，试试放宽意向城市或检查毕业年份、学历。";
 
   return (
-    <main className="wrap">
-      <h1>OfferPilot</h1>
-      <p className="sub">填写画像，只看你真正满足硬条件的校招 / 实习岗位。画像和勾选只保存在你的浏览器里。</p>
+    <>
+      <header className="topbar">
+        <div className="logo">
+          <span className="logo-mark" aria-hidden>
+            ✈
+          </span>
+          OfferPilot
+        </div>
+        <span className="tagline">只看你真正满足硬条件的校招 / 实习岗位</span>
+        <span className="spacer" />
+        {loaded && !error && (
+          <span className="stat">
+            <b>{result.matches.length}</b> 个可投 · 共 {jobs.length} 个岗位
+          </span>
+        )}
+      </header>
 
-      <div className="layout">
-        <section className="card" aria-label="我的画像">
-          <h2>我的画像</h2>
-          <div className="field">
-            <span className="lbl">上传简历自动填写（PDF / Word / txt）</span>
-            <details>
-              <summary className="meta" style={{ cursor: "pointer" }}>
-                模型设置{llm.apiKey ? "（已填写）" : "（用你自己的大模型解析简历）"}
-              </summary>
-              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                <input
-                  type="text"
-                  aria-label="Base URL"
-                  placeholder="Base URL，如 https://api.openai.com/v1"
-                  value={llm.baseUrl}
-                  onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
-                />
-                <input
-                  type="password"
-                  aria-label="API Key"
-                  autoComplete="off"
-                  placeholder="API Key"
-                  value={llm.apiKey}
-                  onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
-                />
-                <input
-                  type="text"
-                  aria-label="模型名"
-                  placeholder="模型名，如 gpt-4o-mini"
-                  value={llm.model}
-                  onChange={(e) => setLlm((l) => ({ ...l, model: e.target.value }))}
-                />
-                <label className="chips" style={{ gap: 6, fontSize: 12, color: "var(--muted)" }}>
-                  <input
-                    type="checkbox"
-                    checked={llm.remember}
-                    onChange={(e) => setLlm((l) => ({ ...l, remember: e.target.checked }))}
-                  />
-                  <span>在这个浏览器里记住（不勾选则关闭标签页后清除）</span>
-                </label>
-                <span className="meta">
-                  支持任何兼容 OpenAI 接口的服务。密钥只保存在你的浏览器里，解析时随请求转发给你填的地址，我们不保存、不记录。请只在自己的设备上填写。
+      <main className="app">
+        <div className="grid3">
+          <div className="col-side">
+            <ResumePanel
+              llm={llm}
+              setLlm={setLlm}
+              consent={consent}
+              setConsent={setConsent}
+              parsing={parsing}
+              onFile={(f) => void onResume(f)}
+              msg={resumeMsg}
+              preview={preview}
+              onClear={clearPreview}
+              experiences={form.experiences}
+            />
+          </div>
+
+          <div className="col-main">
+            <ProfileCard form={form} set={set} ext={ext} canSync={profile.success} onSync={syncToExtension} />
+            <FilterBar
+              filter={filter}
+              setFilter={setFilter}
+              companies={companyFacets}
+              cities={cityFacets}
+              active={filterActive}
+            />
+
+            <section className="panel" aria-label="匹配岗位">
+              <div className="list-head" style={{ marginBottom: 12 }}>
+                <span className="seg" role="group" aria-label="岗位类型">
+                  <button aria-pressed={kind === "fulltime"} onClick={() => setKind("fulltime")}>
+                    全职
+                  </button>
+                  <button aria-pressed={kind === "intern"} onClick={() => setKind("intern")}>
+                    实习
+                  </button>
                 </span>
-                <div className="chips">
-                  <button
-                    className="btn ghost"
-                    onClick={testLlm}
-                    disabled={testing || !llm.baseUrl || !llm.apiKey || !llm.model}
-                  >
-                    {testing ? "测试中…" : "测试连接"}
-                  </button>
-                  <button className="btn ghost" onClick={() => { setLlm(EMPTY_LLM); setLlmMsg(undefined); }}>
-                    清除
-                  </button>
-                </div>
-                {llmMsg && (
-                  <span className="meta" style={{ color: llmMsg.ok ? "var(--brand)" : "var(--warn)" }} role="status">
-                    {llmMsg.text}
+                {loaded && !error && (
+                  <span className="count">
+                    {filterActive ? `筛出 ${filtered.length} / ` : ""}
+                    {result.matches.length} 个可投 · 已排除 {rejectedTotal} 项不符
                   </span>
                 )}
               </div>
-            </details>
-            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--muted)" }}>
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>
-                我同意把简历里的文字发送给大模型服务做解析。文件不会被保存。详见<a href="/privacy">隐私说明</a>。
-              </span>
-            </label>
-            <input
-              type="file"
-              accept=".pdf,.docx,.txt,.md"
-              disabled={!consent || parsing}
-              aria-label="上传简历"
-              onChange={(e) => {
-                void onResume(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            {parsing && <span className="meta">解析中，请稍候…</span>}
-            {resumeMsg && (
-              <span className="meta" style={{ color: resumeMsg.ok ? "var(--brand)" : "var(--warn)" }} role="status">
-                {resumeMsg.text}
-              </span>
-            )}
-          </div>
-          <div className="field">
-            <label htmlFor="school">学校</label>
-            <input id="school" type="text" value={form.school} onChange={(e) => set("school", e.target.value)} />
-          </div>
-          <div className="field">
-            <span className="lbl">院校标签</span>
-            <div className="chips">
-              {SCHOOL_TAGS.map((t) => (
-                <label key={t}>
-                  <input
-                    type="checkbox"
-                    checked={form.schoolTags.includes(t)}
-                    onChange={() => set("schoolTags", flip(form.schoolTags, t))}
-                  />
-                  {t}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="major">专业</label>
-            <input
-              id="major"
-              type="text"
-              placeholder="如 计算机科学与技术"
-              value={form.major}
-              onChange={(e) => set("major", e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="degree">学历</label>
-            <select id="degree" value={form.degree} onChange={(e) => set("degree", e.target.value as Form["degree"])}>
-              <option value="bachelor">本科</option>
-              <option value="master">硕士</option>
-              <option value="phd">博士</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="year">毕业年份</label>
-            <input
-              id="year"
-              type="number"
-              min={2024}
-              max={2032}
-              value={form.graduationYear}
-              onChange={(e) => set("graduationYear", Number(e.target.value) || 2027)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="cities">意向城市（逗号分隔，留空不限）</label>
-            <input
-              id="cities"
-              type="text"
-              placeholder="上海, 杭州"
-              value={form.cities}
-              onChange={(e) => set("cities", e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="roles">意向岗位关键词（用于排序）</label>
-            <input
-              id="roles"
-              type="text"
-              placeholder="后端, 算法"
-              value={form.targetRoles}
-              onChange={(e) => set("targetRoles", e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <span className="lbl">意向公司类型（用于排序）</span>
-            <div className="chips">
-              {(Object.keys(TYPE_LABEL) as CompanyType[]).map((t) => (
-                <label key={t}>
-                  <input
-                    type="checkbox"
-                    checked={form.targetCompanyTypes.includes(t)}
-                    onChange={() => set("targetCompanyTypes", flip(form.targetCompanyTypes, t))}
-                  />
-                  {TYPE_LABEL[t]}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <button className="btn" onClick={syncToExtension} disabled={!profile.success}>
-              同步到浏览器扩展
-            </button>
-            <span className="meta" role="status">
-              {ext === "saved"
-                ? "已同步。打开岗位的投递页，点扩展图标“填写当前页面”。"
-                : ext === "failed"
-                  ? "同步失败：画像格式不对。"
-                  : ext === "ready"
-                    ? "已检测到扩展。画像有改动后需要重新同步。"
-                    : "未检测到扩展时点击没有效果；填写由扩展完成，提交仍由你点击。"}
-            </span>
-          </div>
-        </section>
 
-        <section aria-label="匹配岗位">
-          <div className="tabs">
-            <button className="tab" aria-pressed={kind === "fulltime"} onClick={() => setKind("fulltime")}>
-              全职
-            </button>
-            <button className="tab" aria-pressed={kind === "intern"} onClick={() => setKind("intern")}>
-              实习
-            </button>
-            <span className="meta">
-              {error || jobs.length === 0
-                ? ""
-                : `${filterActive ? `筛出 ${filtered.length} / ` : ""}${result.matches.length} 个可投 / 已排除 ${rejectedTotal} 项不符`}
-            </span>
-          </div>
-
-          <div className="note">
-            {mode === "file" && (
-              <>
-                <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="checkbox"
-                checked={includeUnreviewed}
-                onChange={(e) => setIncludeUnreviewed(e.target.checked)}
-              />
-              包含未审核岗位
-            </label>
-            {" · "}
-            {includeUnreviewed
-              ? "未审核岗位来自采集器、尚未人工核对，仅供试用。"
-              : "只显示人工审核通过的岗位（在 apps/crawler 里用 review 命令审核）。"}
-              </>
-            )}
-            {mode === "supabase" && "岗位均已人工审核，具体要求以官网为准。"}
-            标“未识别”的条件是岗位没写清楚，投递前请自己核对。
-          </div>
-
-          {jobs.length > 0 && (
-            <div className="card" style={{ marginBottom: 12 }} role="search" aria-label="检索与筛选">
-              <input
-                type="text"
-                placeholder="搜索岗位、公司、城市或职责关键词（空格分隔，需全部命中）"
-                aria-label="搜索岗位"
-                value={filter.query}
-                onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
-              />
-              <div className="field" style={{ marginTop: 12 }}>
-                <span className="lbl">公司</span>
-                <div className="chips">
-                  {companyFacets.map(({ value, count }) => (
-                    <label key={value}>
+              <div className={`notice${mode === "file" && includeUnreviewed ? " warn" : ""}`} style={{ marginBottom: 10 }}>
+                {mode === "file" ? (
+                  <>
+                    <label style={{ display: "inline-flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                       <input
                         type="checkbox"
-                        checked={filter.companies.includes(value)}
-                        onChange={() => toggleIn("companies", value)}
+                        checked={includeUnreviewed}
+                        onChange={(e) => setIncludeUnreviewed(e.target.checked)}
                       />
-                      {companyName(value)} {count}
+                      包含未审核岗位
                     </label>
-                  ))}
-                </div>
-              </div>
-              <div className="field">
-                <span className="lbl">城市</span>
-                <div className="chips">
-                  {(allCities ? cityFacets : cityFacets.slice(0, 12)).map(({ value, count }) => (
-                    <label key={value}>
-                      <input
-                        type="checkbox"
-                        checked={filter.cities.includes(value)}
-                        onChange={() => toggleIn("cities", value)}
-                      />
-                      {value} {count}
-                    </label>
-                  ))}
-                  {cityFacets.length > 12 && (
-                    <button className="tab" onClick={() => setAllCities((v) => !v)}>
-                      {allCities ? "收起" : `更多 ${cityFacets.length - 12} 个`}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="chips" style={{ alignItems: "center" }}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={filter.onlySelected}
-                    onChange={(e) => setFilter((f) => ({ ...f, onlySelected: e.target.checked }))}
-                  />
-                  只看已选
-                </label>
-                {filterActive && (
-                  <button className="btn ghost" onClick={() => setFilter(EMPTY_FILTER)}>
-                    清除筛选
-                  </button>
+                    {" · "}
+                    {includeUnreviewed ? "未审核岗位来自采集器，仅供试用。" : "只显示审核通过的岗位。"}
+                  </>
+                ) : (
+                  "岗位来自官网公开页面，具体要求以官网为准。"
                 )}
+                {" "}标“未识别”的条件是岗位没写清楚，投递前请自己核对。
               </div>
-            </div>
-          )}
 
-          {error && <div className="card empty">{error}</div>}
-          {!error && !loaded && <div className="card empty">加载中…</div>}
-          {!error && loaded && jobs.length === 0 && (
-            <div className="card empty">
-              {mode === "supabase"
-                ? "数据库已连通，但还没有审核通过的岗位。管理员审核并同步后这里才会出现岗位。"
-                : "还没有岗位数据，请先在 apps/crawler 运行 npm run crawl。"}
-            </div>
-          )}
-          {jobs.length > 0 && (
-            <div className="card">
-              {filtered.length === 0 && (
+              {error && <div className="empty">{error}</div>}
+              {!error && !loaded && (
+                <div className="skeleton" aria-label="加载中">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} />
+                  ))}
+                </div>
+              )}
+              {!error && loaded && jobs.length === 0 && (
                 <div className="empty">
-                  {filterActive
-                    ? "没有符合筛选条件的岗位，试试清除部分筛选。"
-                    : !includeUnreviewed
-                      ? "还没有审核通过的岗位。可勾选“包含未审核岗位”试用，或先在 apps/crawler 里审核。"
-                      : "没有符合条件的岗位，试试放宽意向城市。"}
+                  {mode === "supabase"
+                    ? "数据库已连通，但还没有审核通过的岗位。"
+                    : "还没有岗位数据，请先在 apps/crawler 运行 npm run crawl。"}
                 </div>
               )}
-              {filtered.slice(0, shown).map(({ job, unknown }) => (
-                <div className="job" key={job.id}>
-                  <input
-                    type="checkbox"
-                    aria-label={`选择 ${job.title}`}
-                    checked={selected.includes(job.id)}
-                    onChange={() => toggle(job.id)}
-                  />
-                  <div>
-                    <h3>
-                      <a href={job.applyUrl} target="_blank" rel="noreferrer">
-                        {job.title}
-                      </a>
-                    </h3>
-                    <div className="meta">
-                      <span className="badge">{companyName(job.companyId)}</span>
-                      {job.reviewStatus !== "approved" && <span className="badge warn">未审核</span>}
-                      {job.city.join(" / ") || "城市未标注"}
-                      {unknown.length > 0 && (
-                        <span className="badge warn" style={{ marginLeft: 6 }}>
-                          未识别：{unknown.join("、")}
-                        </span>
-                      )}
-                    </div>
+              {!error && jobs.length > 0 && filtered.length === 0 && (
+                <div className="empty">
+                  <div className="em" aria-hidden>
+                    🔍
                   </div>
-                </div>
-              ))}
-              {filtered.length > shown && (
-                <div style={{ textAlign: "center", paddingTop: 12 }}>
-                  <button className="btn ghost" onClick={() => setShown((n) => n + PAGE)}>
-                    再显示 {Math.min(PAGE, filtered.length - shown)} 个
-                  </button>
+                  {emptyText}
                 </div>
               )}
-            </div>
-          )}
-        </section>
-      </div>
+              {!error && filtered.length > 0 && (
+                <JobList
+                  items={filtered.slice(0, shown)}
+                  total={filtered.length}
+                  selected={selectedSet}
+                  activeId={activeId}
+                  onOpen={setActiveId}
+                  onToggle={toggle}
+                  onMore={() => setShown((n) => n + PAGE)}
+                />
+              )}
+            </section>
+          </div>
 
-      {chosen.length > 0 && (
-        <div className="bar" role="region" aria-label="已选岗位">
-          <span>已选 {chosen.length} 个岗位</span>
-          <button className="btn ghost" onClick={() => setSelected([])}>
-            清空
-          </button>
-          <button
-            className="btn"
-            onClick={() => chosen.slice(0, 10).forEach((j) => window.open(j.applyUrl, "_blank", "noopener"))}
-          >
-            打开前 {Math.min(10, chosen.length)} 个投递页
-          </button>
+          <div className={`col-side col-detail${active ? " open" : ""}`}>
+            {active ? (
+              <JobDetail
+                job={active}
+                profile={profile.success ? profile.data : undefined}
+                picked={selectedSet.has(active.id)}
+                onToggle={() => toggle(active.id)}
+                onClose={() => setActiveId(undefined)}
+              />
+            ) : (
+              <SelectedPanel jobs={chosen} onOpen={setActiveId} onRemove={toggle} onClear={() => setSelected([])} />
+            )}
+          </div>
         </div>
-      )}
-    </main>
+
+        {chosen.length > 0 && (
+          <div className="bar" role="region" aria-label="已选岗位">
+            <span>已选 {chosen.length} 个</span>
+            <button className="btn ghost sm" onClick={() => setSelected([])}>
+              清空
+            </button>
+            <button
+              className="btn sm"
+              onClick={() => chosen.slice(0, 10).forEach((j) => window.open(j.applyUrl, "_blank", "noopener"))}
+            >
+              打开前 {Math.min(10, chosen.length)} 个 ↗
+            </button>
+          </div>
+        )}
+      </main>
+    </>
   );
 }

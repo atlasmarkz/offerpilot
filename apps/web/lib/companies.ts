@@ -17,3 +17,10 @@ export const COMPANY_NAMES: Record<string, string> = {
 };
 
 export const companyName = (id: string) => COMPANY_NAMES[id] ?? id;
+
+/** 按公司 id 生成稳定的色相，用来给公司标签上色，一眼能区分。 */
+export function companyHue(id: string): number {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+}

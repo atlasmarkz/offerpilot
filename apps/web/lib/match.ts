@@ -57,3 +57,40 @@ export function matchJobs(profile: Profile, jobs: Job[], opts: MatchOptions): Ma
   matches.sort((a, b) => b.score - a.score || a.job.title.localeCompare(b.job.title, "zh"));
   return { matches, rejected };
 }
+
+export interface Check {
+  label: string;
+  /** 岗位的要求，没写则为空 */
+  need: string;
+  /** ok：写了而且你满足；unknown：岗位没写清楚，需要自己核对 */
+  status: "ok" | "unknown";
+}
+
+const DEGREE_NAME = { bachelor: "本科", master: "硕士", phd: "博士" } as const;
+
+/** 右侧详情用：逐项列出岗位要求以及你是否满足（能出现在列表里的岗位都已通过硬条件）。 */
+export function explainJob(profile: Profile, job: Job): Check[] {
+  const r = job.requirements;
+  return [
+    {
+      label: "学历",
+      need: r.minDegree ? `${DEGREE_NAME[r.minDegree]}及以上（你：${DEGREE_NAME[profile.degree]}）` : "",
+      status: r.minDegree ? "ok" : "unknown",
+    },
+    {
+      label: "毕业届别",
+      need: r.graduationYears.length ? `${r.graduationYears.join("、")} 届（你：${profile.graduationYear} 届）` : "",
+      status: r.graduationYears.length ? "ok" : "unknown",
+    },
+    {
+      label: "专业",
+      need: r.majors.length ? r.majors.join("、") : "",
+      status: r.majors.length ? "ok" : "unknown",
+    },
+    {
+      label: "院校",
+      need: r.schoolTags.length ? r.schoolTags.join(" / ") : "",
+      status: r.schoolTags.length ? "ok" : "unknown",
+    },
+  ];
+}

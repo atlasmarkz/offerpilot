@@ -1,0 +1,97 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Job } from "@offerpilot/shared";
+import { runPipeline, type RawPosting, type SourceAdapter } from "./pipeline";
+import { JobStore } from "./store";
+
+const job = (over: object = {}) =>
+  Job.parse({
+    id: "abc12345",
+    companyId: "c",
+    companyType: "internet",
+    title: "后端开发",
+    kind: "fulltime",
+    applyUrl: "https://example.com/1",
+    sourceUrl: "https://example.com/list",
+    ...over,
+  });
+
+let dir: string;
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), "offerpilot-store-"));
+});
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+describe("JobStore", () => {
+  it("persists and reloads", () => {
+    const path = join(dir, "jobs.json");
+    const a = new JobStore(path);
+    expect(a.upsert([job()])).toBe(1);
+    a.save();
+    expect(new JobStore(path).list()).toHaveLength(1);
+  });
+
+  it("keeps the review status when a job is re-crawled", () => {
+    const store = new JobStore(join(dir, "jobs.json"));
+    store.upsert([job()]);
+    store.setStatus("abc1", "approved");
+    // 重新抓到同一个岗位（内容有更新），审核状态不能被重置回 pending
+    expect(store.upsert([job({ description: "更新后的描述" })])).toBe(0);
+    const [j] = store.list();
+    expect(j!.reviewStatus).toBe("approved");
+    expect(j!.description).toBe("更新后的描述");
+  });
+
+  it("rejects ambiguous id prefixes", () => {
+    const store = new JobStore(join(dir, "jobs.json"));
+    store.upsert([job({ id: "abc111" }), job({ id: "abc222", applyUrl: "https://example.com/2" })]);
+    expect(() => store.setStatus("abc", "approved")).toThrow(/2 条/);
+  });
+});
+
+describe("runPipeline with structured sources", () => {
+  const raw = (over: Partial<RawPosting> = {}): RawPosting => ({
+    sourceUrl: "https://corp.example/list",
+    applyUrl: "https://corp.example/list",
+    text: "",
+    fetchedAt: "2026-11-01T00:00:00Z",
+    companyId: "corp",
+    companyType: "internet",
+    ...over,
+  });
+
+  it("skips the LLM when candidates are already structured", async () => {
+    const source: SourceAdapter = {
+      id: "s",
+      fetchPostings: async () => [
+        raw({ candidates: [{ title: "算法", kind: "intern", applyUrl: "https://corp.example/p/1" }] }),
+      ],
+    };
+    let called = false;
+    const result = await runPipeline([source], async () => {
+      called = true;
+      return [];
+    });
+    expect(called).toBe(false);
+    expect(result.accepted).toHaveLength(1);
+    expect(result.accepted[0]!.reviewStatus).toBe("pending");
+  });
+
+  it("isolates a failing source", async () => {
+    const bad: SourceAdapter = {
+      id: "bad",
+      fetchPostings: async () => {
+        throw new Error("net::ERR_TIMED_OUT\n  at stack");
+      },
+    };
+    const good: SourceAdapter = {
+      id: "good",
+      fetchPostings: async () => [raw({ candidates: [{ title: "前端", kind: "fulltime" }] })],
+    };
+    const result = await runPipeline([bad, good], async () => []);
+    expect(result.sourceErrors).toEqual([{ source: "bad", error: "net::ERR_TIMED_OUT" }]);
+    expect(result.accepted).toHaveLength(1);
+  });
+});

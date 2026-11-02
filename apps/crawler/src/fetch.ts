@@ -25,7 +25,7 @@ export function parseDisallow(robotsTxt: string): string[] {
   return rules;
 }
 
-async function allowedByRobots(url: URL): Promise<boolean> {
+export async function allowedByRobots(url: URL): Promise<boolean> {
   let rules = robotsCache.get(url.origin);
   if (!rules) {
     try {
@@ -39,14 +39,18 @@ async function allowedByRobots(url: URL): Promise<boolean> {
   return !rules.some((prefix) => url.pathname.startsWith(prefix));
 }
 
-/** 礼貌抓取：遵守 robots.txt，限速，带可识别的 UA。被禁止时抛错而不是绕过。 */
-export async function politeFetch(urlStr: string, opts: FetchOptions = {}): Promise<string> {
-  const url = new URL(urlStr);
-  if (!(await allowedByRobots(url))) throw new Error(`robots.txt 禁止抓取: ${urlStr}`);
-
-  const wait = (lastRequestAt.get(url.host) ?? 0) + (opts.minIntervalMs ?? 2000) - Date.now();
+/** 同一主机限速；被 robots 禁止时抛错而不是绕过。 */
+export async function acquire(url: URL, minIntervalMs = 2000): Promise<void> {
+  if (!(await allowedByRobots(url))) throw new Error(`robots.txt 禁止抓取: ${url}`);
+  const wait = (lastRequestAt.get(url.host) ?? 0) + minIntervalMs - Date.now();
   if (wait > 0) await sleep(wait);
   lastRequestAt.set(url.host, Date.now());
+}
+
+/** 礼貌抓取：遵守 robots.txt，限速，带可识别的 UA。 */
+export async function politeFetch(urlStr: string, opts: FetchOptions = {}): Promise<string> {
+  const url = new URL(urlStr);
+  await acquire(url, opts.minIntervalMs);
 
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, "Accept-Language": "zh-CN,zh;q=0.9" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${urlStr}`);

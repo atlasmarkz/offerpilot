@@ -1,11 +1,95 @@
 [
   {
-    "id": "example-company",
-    "companyId": "example",
+    "id": "bytedance-campus",
+    "companyId": "bytedance",
     "companyType": "internet",
-    "url": "https://example.com/campus-jobs",
+    "url": "https://jobs.bytedance.com/campus/position",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://jobs.bytedance.com/campus/position/{id}/detail",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "nio-campus",
+    "companyId": "nio",
+    "companyType": "internet",
+    "url": "https://nio.jobs.feishu.cn/campus",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://nio.jobs.feishu.cn/campus/position/{id}/detail",
+    "mode": "browser"
+  },
+  {
+    "id": "li-campus",
+    "companyId": "lixiang",
+    "companyType": "internet",
+    "url": "https://li.jobs.feishu.cn",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://li.jobs.feishu.cn/position/{id}/detail",
+    "mode": "browser",
     "enabled": false,
-    "detailLinkPattern": "/campus-jobs/\\d+",
-    "maxDetailPages": 20
+    "note": "理想的飞书招聘入口只有社招（771 条），未找到校招入口；找到后改 url 再启用"
+  },
+  {
+    "id": "xiaomi-campus",
+    "companyId": "xiaomi",
+    "companyType": "internet",
+    "url": "https://xiaomi.jobs.f.mioffice.cn/campus",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://xiaomi.jobs.f.mioffice.cn/campus/position/{id}/detail",
+    "mode": "browser"
+  },
+  {
+    "id": "tencent-campus",
+    "companyId": "tencent",
+    "companyType": "internet",
+    "url": "https://join.qq.com/post.html",
+    "mode": "browser",
+    "enabled": true,
+    "platform": "tencent",
+    "defaultGraduationYears": [
+      2027
+    ],
+    "note": "列表页没有职责/要求正文，硬条件为空（匹配时视为不限）；届别按 defaultGraduationYears"
+  },
+  {
+    "id": "meituan-campus",
+    "companyId": "meituan",
+    "companyType": "internet",
+    "url": "https://zhaopin.meituan.com/web/position?hiringType=1",
+    "platform": "meituan",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "meituan-intern",
+    "companyId": "meituan",
+    "companyType": "internet",
+    "url": "https://zhaopin.meituan.com/web/position?hiringType=2",
+    "platform": "meituan",
+    "mode": "browser",
+    "maxJobs": 400
+  },
+  {
+    "id": "jd-campus",
+    "companyId": "jd",
+    "companyType": "internet",
+    "url": "https://campus.jd.com/#/jobs",
+    "platform": "jd",
+    "mode": "browser",
+    "maxJobs": 200
+  },
+  {
+    "id": "minimax-campus",
+    "companyId": "minimax",
+    "companyType": "internet",
+    "url": "https://vrfi1sk8a0.jobs.feishu.cn/index",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://vrfi1sk8a0.jobs.feishu.cn/index/position/{id}/detail",
+    "recruitTypes": [
+      "校招",
+      "实习"
+    ],
+    "mode": "browser",
+    "maxJobs": 300
   }
 ]

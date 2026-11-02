@@ -11,6 +11,8 @@ export interface RawPosting {
   fetchedAt: string;
   companyId: string;
   companyType: CompanyType;
+  /** 结构化数据源已经解析好的岗位；有的话跳过大模型抽取 */
+  candidates?: unknown[];
 }
 
 /** 每个数据源（企业官网、聚合站等）实现一个适配器。 */
@@ -28,6 +30,8 @@ export interface PipelineResult {
   invalid: { raw: RawPosting; error: string }[];
   /** 本批内重复（同一投递链接且同标题）被丢弃的数量 */
   duplicates: number;
+  /** 整个数据源抓取失败（网络超时、被 robots 禁止等） */
+  sourceErrors: { source: string; error: string }[];
 }
 
 export function jobId(applyUrl: string, title: string): string {
@@ -46,15 +50,23 @@ function resolveUrl(candidate: unknown, base: string, fallback: string): string 
 export async function runPipeline(sources: SourceAdapter[], extract: Extractor): Promise<PipelineResult> {
   const accepted: Job[] = [];
   const invalid: PipelineResult["invalid"] = [];
+  const sourceErrors: PipelineResult["sourceErrors"] = [];
   const seen = new Set<string>();
   let duplicates = 0;
 
   for (const source of sources) {
-    const postings = await source.fetchPostings();
+    let postings: RawPosting[];
+    try {
+      postings = await source.fetchPostings();
+    } catch (e) {
+      // 单个数据源失败不影响其他数据源
+      sourceErrors.push({ source: source.id, error: (e as Error).message.split("\n")[0]! });
+      continue;
+    }
     for (const raw of postings) {
       let candidates: unknown[];
       try {
-        candidates = await extract(raw);
+        candidates = raw.candidates ?? (await extract(raw));
       } catch (e) {
         invalid.push({ raw, error: `extract failed: ${(e as Error).message}` });
         continue;
@@ -87,5 +99,5 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
       }
     }
   }
-  return { accepted, invalid, duplicates };
+  return { accepted, invalid, duplicates, sourceErrors };
 }

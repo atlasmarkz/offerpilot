@@ -92,6 +92,7 @@ export default function Home() {
   const [form, setForm] = useState<Form>(EMPTY);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string>();
+  const [loaded, setLoaded] = useState(false);
   const [kind, setKind] = useState<JobKind>("fulltime");
   const [selected, setSelected] = useState<string[]>([]);
   const [shown, setShown] = useState(PAGE);
@@ -122,6 +123,7 @@ export default function Home() {
         if (!r.ok) throw new Error(body.error ?? "加载岗位失败");
         setJobs(body.jobs);
         setMode(body.mode);
+        setLoaded(true);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -555,7 +557,14 @@ export default function Home() {
           )}
 
           {error && <div className="card empty">{error}</div>}
-          {!error && jobs.length === 0 && <div className="card empty">加载中…</div>}
+          {!error && !loaded && <div className="card empty">加载中…</div>}
+          {!error && loaded && jobs.length === 0 && (
+            <div className="card empty">
+              {mode === "supabase"
+                ? "数据库已连通，但还没有审核通过的岗位。管理员审核并同步后这里才会出现岗位。"
+                : "还没有岗位数据，请先在 apps/crawler 运行 npm run crawl。"}
+            </div>
+          )}
           {jobs.length > 0 && (
             <div className="card">
               {filtered.length === 0 && (

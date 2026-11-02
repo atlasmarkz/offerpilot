@@ -188,5 +188,14 @@
     "platform": "ctrip",
     "mode": "browser",
     "maxJobs": 300
+  },
+  {
+    "id": "tonghuashun-campus",
+    "companyId": "tonghuashun",
+    "companyType": "finance",
+    "url": "https://campus.10jqka.com.cn/job/list?type=school",
+    "platform": "tonghuashun",
+    "mode": "browser",
+    "maxJobs": 300
   }
 ]

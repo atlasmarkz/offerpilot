@@ -3,6 +3,7 @@ import { Job } from "@offerpilot/shared";
 import { mapFeishuPost, type FeishuPost } from "./feishu";
 import { mapBilibiliPosition } from "./bilibili";
 import { mapMihoyoJob } from "./mihoyo";
+import { mapTonghuashunJob } from "./tonghuashun";
 import { mapCtripJob } from "./ctrip";
 import { mapJaneStreetJob, isCampus } from "./janestreet";
 import { mapNeteaseHrJob, mapNeteaseJob } from "./netease";
@@ -153,6 +154,15 @@ describe("bilibili / netease / xiaohongshu / mihoyo mappers", () => {
       requirements: "<p>招聘对象：本、硕、博。</p><p>1、营销、新闻传媒专业优先；</p>",
     });
     expect(m).toMatchObject({ title: "商务合作（2027届秋招）", kind: "fulltime", city: ["上海"], applyUrl: "https://careers.ctrip.com/#/campus/job-detail/MJ037473" });
+    expect(valid(m)).toBe(true);
+  });
+
+  it("tonghuashun: intern series and detail link", () => {
+    const m = mapTonghuashunJob(
+      { id: 2257, name: "后端开发工程师", base: "杭州", apply_recruitment_series_name: "2027届暑期实习", requirement: "1、本科及以上学历" },
+      { defaultGraduationYears: [] },
+    );
+    expect(m).toMatchObject({ kind: "intern", city: ["杭州"], applyUrl: "https://campus.10jqka.com.cn/job/detail?id=2257" });
     expect(valid(m)).toBe(true);
   });
 });

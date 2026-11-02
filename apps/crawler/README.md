@@ -32,6 +32,7 @@ npm run review -w @offerpilot/crawler -- reject <id前缀>
 | 网易日常实习 | `neteasehr` | hr.163.com，约 600 条，有独立详情页 |
 | Jane Street | `janestreet` | 官方公开 JSON，只保留 New Grad 和实习（海外岗位，无硬条件） |
 | 携程 | `ctrip` | 应届校招，约 50 条 |
+| 同花顺 | `tonghuashun` | 校招 + 实习，约 110 条 |
 | 小红书 | `xiaohongshu` | 2027 校招 |
 | 米哈游 | `mihoyo` | 列表无职责/要求正文，硬条件为空，届别取自届别说明 |
 
@@ -69,5 +70,6 @@ npm run review -w @offerpilot/crawler -- reject <id前缀>
 - 阿里：校招/实习入口当前没有在招岗位（返回 0 条），新批次开放后再接。
 - 快手：robots.txt 禁止抓取，按合规原则不接入。
 - 百度、荣耀、科大讯飞、商汤等站点页面空白或被拦，未接入；OPPO 等还没找到可用的岗位列表接口。
+- 科大讯飞（zhiye.com）、地平线（hotjob.cn）：点击后没有触发岗位接口，尚未摸清。
 - 华为、蚂蚁、OPPO：校招页没有触发岗位列表接口（可能未开放或需登录），尚未接入。
 - 滴滴：岗位接口返回加密数据，页面自行解密；不去破解，要接只能走渲染后的页面，暂缓。

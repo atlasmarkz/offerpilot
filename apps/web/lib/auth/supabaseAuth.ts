@@ -171,3 +171,13 @@ export async function userStorage(path: string, accessToken: string, init: Reque
     throw new AuthError("连接存储服务失败，请稍后重试", 502);
   }
 }
+
+/** 取出数据库（PostgREST）返回的错误原因，如 “Could not find the table …”，方便定位；不含密钥。 */
+export async function pgReason(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { message?: string; hint?: string; code?: string };
+    return [j.code, j.message, j.hint].filter(Boolean).join(" ").slice(0, 200);
+  } catch {
+    return "";
+  }
+}

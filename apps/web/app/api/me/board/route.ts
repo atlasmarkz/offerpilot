@@ -1,6 +1,6 @@
 import { BOARD_COLUMNS, BoardCreate, type BoardItem } from "../../../../lib/board";
 import { jsonWith, resolveSession, sameOrigin } from "../../../../lib/auth/session";
-import { AuthError, authConfig, userRest } from "../../../../lib/auth/supabaseAuth";
+import { AuthError, authConfig, pgReason, userRest } from "../../../../lib/auth/supabaseAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,10 @@ export async function GET(req: Request) {
     const s = await resolveSession(req);
     if (!s) return jsonWith({ error: "请先登录" }, { status: 401 });
     const res = await userRest(`/board_item?select=${BOARD_COLUMNS}&order=updated_at.desc&limit=1000`, s.accessToken);
-    if (!res.ok) return jsonWith({ error: "读取看板失败" }, { status: 502, cookies: s.setCookies });
+    if (!res.ok) {
+      const why = await pgReason(res);
+      return jsonWith({ error: `读取看板失败${why ? `：${why}` : ""}` }, { status: 502, cookies: s.setCookies });
+    }
     return jsonWith({ items: (await res.json()) as BoardItem[] }, { cookies: s.setCookies });
   } catch (e) {
     return jsonWith({ error: e instanceof AuthError ? e.message : "读取失败" }, { status: 502 });

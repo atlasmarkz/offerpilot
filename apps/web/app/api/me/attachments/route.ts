@@ -4,7 +4,7 @@ import { AttachError, checkAttachment, MAX_ATTACHMENT_BYTES } from "../../../../
 import { billingEnabled } from "../../../../lib/billing/billing";
 import { loadPlan } from "../../../../lib/billing/plan";
 import { jsonWith, resolveSession, sameOrigin } from "../../../../lib/auth/session";
-import { AuthError, authConfig, userRest, userStorage } from "../../../../lib/auth/supabaseAuth";
+import { AuthError, authConfig, pgReason, userRest, userStorage } from "../../../../lib/auth/supabaseAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,10 @@ interface Row {
 
 async function list(accessToken: string): Promise<Row[]> {
   const res = await userRest("/attachment?select=id,name,size,created_at&order=created_at.asc", accessToken);
-  if (!res.ok) throw new AuthError("读取附件失败", 502);
+  if (!res.ok) {
+    const why = await pgReason(res);
+    throw new AuthError(`读取附件失败${why ? `：${why}` : ""}`, 502);
+  }
   return (await res.json()) as Row[];
 }
 

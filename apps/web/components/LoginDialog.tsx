@@ -212,49 +212,56 @@ export function LoginDialog({ onClose, onSuccess, initial = "login" }: Props) {
           }}
           style={{ display: "grid", gap: 12 }}
         >
-          <label className="field">
-            <span className="lbl">邮箱</span>
-            <input
-              ref={step === "login" || step === "register" || step === "forgot" ? first : undefined}
-              id="login-email"
-              className="input"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              disabled={isCodeStep}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-
-          {isCodeStep && (
-            <div className="field">
-              <span className="lbl">邮箱验证码</span>
+          {!isCodeStep && (
+            <label className="field">
+              <span className="lbl">邮箱</span>
               <input
                 ref={first}
-                id="login-code"
-                className="input code-input"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={10}
-                placeholder="输入邮件里的验证码"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                id="login-email"
+                className="input"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
-              <span className="msg" style={{ margin: 0, color: "var(--muted)" }} role="status">
-                {sendingSince !== undefined ? (
-                  <>
-                    验证码邮件发送中…已等待 {waited} 秒。
-                    {waited >= 10 && "邮件有时会慢一些，请耐心等一下，也看看垃圾邮件箱。"}
-                  </>
-                ) : (
-                  <>
-                    验证码已发送到 <b>{email}</b>，没收到请看垃圾邮件箱。
-                    {step === "verify" && "如果这个邮箱以前登录过（旧版是验证码登录，没有设过密码），系统不会再发注册验证码，请返回登录页点“忘记密码”来设置密码。"}
-                  </>
-                )}
-              </span>
-            </div>
+            </label>
+          )}
+
+          {isCodeStep && (
+            <>
+              <div className={`mail-note${sendingSince !== undefined ? " sending" : ""}`} role="status">
+                <span className="mail-ico" aria-hidden="true">{sendingSince !== undefined ? <i className="spin" /> : "✉"}</span>
+                <span>
+                  {sendingSince !== undefined ? (
+                    <>
+                      正在发送验证码…已等待 {waited} 秒
+                      {waited >= 10 && <em>邮件有时会慢一些，请稍等，也看看垃圾邮件箱</em>}
+                    </>
+                  ) : (
+                    <>
+                      验证码已发送至 <b>{email}</b>
+                      <em>没收到？看看垃圾邮件箱</em>
+                    </>
+                  )}
+                </span>
+              </div>
+              <label className="field">
+                <span className="lbl">邮箱验证码</span>
+                <input
+                  ref={first}
+                  id="login-code"
+                  className="input code-input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={10}
+                  placeholder="请输入验证码"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+              {step === "reset" && <div className="form-sep">设置新密码</div>}
+            </>
           )}
 
           {needsPassword && (

@@ -222,10 +222,11 @@ async function pickSearch(input: HTMLInputElement, text: string, tpl: SiteTempla
   input.focus();
   setInputValue(input, text);
   const optSel = `${tpl.select?.option ?? ""}, [role=option]`;
-  const hit = await until(
-    () => [...doc.querySelectorAll<HTMLElement>(optSel)].filter(visible).find((o) => clean(o.textContent).includes(clean(text))),
-    2500,
-  );
+  // 搜索结果会陆续刷新：优先完全一致的选项，其次包含
+  const hit = await until(() => {
+    const opts = [...doc.querySelectorAll<HTMLElement>(optSel)].filter(visible);
+    return opts.find((o) => clean(o.textContent) === clean(text)) ?? opts.find((o) => clean(o.textContent).includes(clean(text)));
+  }, 4000);
   if (!hit) {
     setInputValue(input, "");
     press(doc.body, "Escape");

@@ -31,7 +31,8 @@ export const TEMPLATES: SiteTemplate[] = [
     // 教育/实习/项目等可重复区块是 .apply-form-array-card，区块标题在 .applyFormModuleWrapper-title
     itemSelector: ".ud-formily-item, [class*=ud__form__item]",
     sections: true,
-    select: { opener: "[class*=ud__select__selector]", option: `[class*=ud__select__option], ${ANY_OPTION}` },
+    // 实测：弹出的选项是 .ud__select__list__item（虚拟列表里，不在表单项内）；学校是 ud__input 外壳的搜索框，没有 selector
+    select: { opener: "[class*=ud__select__selector]", option: `.ud__select__list__item, [class*=ud__select__option], ${ANY_OPTION}` },
   },
   {
     id: "moka",

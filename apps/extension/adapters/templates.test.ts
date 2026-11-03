@@ -16,6 +16,11 @@ describe("detectTemplate", () => {
     expect(detectTemplate(document, "https://app.mokahr.com/campus_apply/x").template.id).toBe("moka");
     expect(detectTemplate(document, "https://x.zhiye.com/").template.id).toBe("beisen");
     expect(detectTemplate(document, "https://acme.wd1.myworkdayjobs.com/en/apply").template.id).toBe("workday");
+    // 飞书招聘的租户：字节、小米（白标域名）、得物、蔚来
+    for (const u of ["https://jobs.bytedance.com/campus/position/1/detail", "https://xiaomi.jobs.f.mioffice.cn/campus", "https://poizon.jobs.feishu.cn/index", "https://nio.jobs.feishu.cn/campus"])
+      expect(detectTemplate(document, u).template.id).toBe("feishu");
+    expect(detectTemplate(document, "https://wecruit500.hotjob.cn/SU5fb249/pb/index.html").template.id).toBe("hotjob");
+    expect(detectTemplate(document, "https://iflytek.zhiye.com/").template.id).toBe("beisen");
   });
 
   it("falls back to UI-library fingerprints, then to native", () => {

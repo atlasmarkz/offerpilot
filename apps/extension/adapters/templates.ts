@@ -22,8 +22,9 @@ export const TEMPLATES: SiteTemplate[] = [
   {
     id: "feishu",
     name: "飞书招聘",
-    hosts: [/(^|\.)jobs\.feishu\.cn/, /(^|\.)feishu\.cn\/.*hire/, /(^|\.)larkoffice\.com/],
-    fingerprint: ["[class*=ud__form]", "[class*=ud__select]"],
+    // 字节、蔚来、小米（jobs.f.mioffice.cn 是飞书招聘的白标域名）、得物（poizon）、商汤、小鹏等都是飞书招聘的租户
+    hosts: [/(^|\.)jobs\.feishu\.cn/, /(^|\.)jobs\.f\.mioffice\.cn/, /(^|\.)jobs\.bytedance\.com/, /(^|\.)job\.toutiao\.com/, /(^|\.)feishu\.cn\/.*hire/, /(^|\.)larkoffice\.com/],
+    fingerprint: ["[class*=ud__form]", "[class*=ud__select]", "script[src*=feishucdn]"],
     itemSelector: "[class*=ud__form__item]",
     select: { opener: "[class*=ud__select__selector]", option: `[class*=ud__select__option], ${ANY_OPTION}` },
   },
@@ -45,8 +46,9 @@ export const TEMPLATES: SiteTemplate[] = [
   },
   {
     id: "hotjob",
-    name: "大易 / 其他 ATS",
-    hosts: [/(^|\.)hotjob\.cn/, /(^|\.)dayee\.com/, /(^|\.)hr\.job5156\.com/],
+    name: "大易招聘",
+    // 荣耀的 career.honor.com 会跳转到 wecruit*.hotjob.cn
+    hosts: [/(^|\.)hotjob\.cn/, /(^|\.)dayee\.com/],
     fingerprint: [],
     itemSelector: "[class*=form-item], [class*=field]",
   },
@@ -67,8 +69,8 @@ export const TEMPLATES: SiteTemplate[] = [
   },
   {
     id: "arco",
-    name: "字节系 / Arco Design",
-    hosts: [/(^|\.)jobs\.bytedance\.com/, /(^|\.)job\.toutiao\.com/, /(^|\.)jobs\.tiktok\.com/],
+    name: "Arco Design 表单",
+    hosts: [/(^|\.)jobs\.tiktok\.com/],
     fingerprint: ["[class*=arco-form]", "[class*=arco-select]"],
     itemSelector: "[class*=arco-form-item]",
     select: { opener: "[class*=arco-select-view]", option: `[class*=arco-select-option], ${ANY_OPTION}` },

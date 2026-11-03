@@ -85,3 +85,12 @@ describe("template adapter", () => {
     expect(again).toMatchObject({ status: "filled", template: "飞书招聘" });
   });
 });
+
+describe("real Feishu Hire markup (ud-formily)", () => {
+  it("reads labels from .ud-formily-item and fills basic fields", async () => {
+    page(`<div class="ud-formily-item"><div class="ud-formily-item-label"><label>姓名*</label></div><div class="ud-formily-item-control"><div class="ud__input"><span class="ud__input-input__placeholder__wrapper"><input class="ud__native-input"></span></div></div></div>
+          <div class="ud-formily-item"><div class="ud-formily-item-label"><label>邮箱*</label></div><div class="ud-formily-item-control"><div class="ud__input"><input class="ud__native-input"></div></div></div>`);
+    const o = await genericAdapter.fill(document, profile, { 邮箱: "a@b.com" });
+    expect(o).toMatchObject({ status: "filled", template: "飞书招聘", filledFields: ["姓名", "邮箱"] });
+  });
+});

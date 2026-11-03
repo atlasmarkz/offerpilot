@@ -24,8 +24,10 @@ export const TEMPLATES: SiteTemplate[] = [
     name: "飞书招聘",
     // 字节、蔚来、小米（jobs.f.mioffice.cn 是飞书招聘的白标域名）、得物（poizon）、商汤、小鹏等都是飞书招聘的租户
     hosts: [/(^|\.)jobs\.feishu\.cn/, /(^|\.)jobs\.f\.mioffice\.cn/, /(^|\.)jobs\.bytedance\.com/, /(^|\.)job\.toutiao\.com/, /(^|\.)feishu\.cn\/.*hire/, /(^|\.)larkoffice\.com/],
-    fingerprint: ["[class*=ud__form]", "[class*=ud__select]", "script[src*=feishucdn]"],
-    itemSelector: "[class*=ud__form__item]",
+    fingerprint: ["[class*=ud__form]", "[class*=ud__select]", "[class*=ud-formily]", "script[src*=feishucdn]"],
+    // 实测（蔚来校招简历编辑页）：表单项是 Formily 的 .ud-formily-item，标签在 .ud-formily-item-label；
+    // 教育/实习/项目等可重复区块是 .apply-form-array-card，区块标题在 .applyFormModuleWrapper-title
+    itemSelector: ".ud-formily-item, [class*=ud__form__item]",
     select: { opener: "[class*=ud__select__selector]", option: `[class*=ud__select__option], ${ANY_OPTION}` },
   },
   {

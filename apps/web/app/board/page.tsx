@@ -119,13 +119,6 @@ export default function BoardPage() {
             <div />
             <div />
           </div>
-        ) : items.length === 0 && !error ? (
-          <div className="panel empty">
-            <div className="em" aria-hidden>
-              📌
-            </div>
-            还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。
-          </div>
         ) : (
           <>
             <BoardDashboard items={items} usage={session.usage} />
@@ -133,6 +126,9 @@ export default function BoardPage() {
               <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>
               <span className="count">拖动卡片可更改状态</span>
             </div>
+            {items.length === 0 && !error && (
+              <p className="dash-empty">还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。</p>
+            )}
           <div className="board-cols">
             {BOARD_STATUSES.map((st) => {
               const col = items.filter((x) => x.status === st);

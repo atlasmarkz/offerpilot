@@ -88,6 +88,11 @@ function render(o: FillOutcome) {
 
 void refresh();
 
+// 网页端同步画像后，已经打开的弹窗也立刻刷新，不用关了重开
+browser.storage.onChanged.addListener((changes) => {
+  if (changes.profile) void refresh();
+});
+
 // 填表脚本跑完后会把结果发回来；弹窗开着时随时显示（点击流程和自动化测试都走这里）
 browser.runtime.onMessage.addListener((m: unknown) => {
   const msg = m as { type?: string; outcome?: FillOutcome };

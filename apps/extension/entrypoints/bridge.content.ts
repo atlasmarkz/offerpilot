@@ -17,11 +17,13 @@ export default defineContentScript({
       if (data?.source !== "offerpilot-web" || data.type !== "profile") return;
 
       const parsed = Profile.safeParse(data.profile);
-      if (parsed.success) await browser.storage.local.set({ profile: parsed.data });
-      window.postMessage(
-        { source: "offerpilot-ext", type: "profile-saved", ok: parsed.success },
-        location.origin,
-      );
+      let ok = parsed.success;
+      try {
+        if (parsed.success) await browser.storage.local.set({ profile: parsed.data });
+      } catch {
+        ok = false; // 存储失败也要回执，网页才不会一直没反应
+      }
+      window.postMessage({ source: "offerpilot-ext", type: "profile-saved", ok }, location.origin);
     });
     // 让网页知道扩展已安装
     window.postMessage({ source: "offerpilot-ext", type: "ready" }, location.origin);

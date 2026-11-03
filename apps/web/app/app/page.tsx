@@ -87,7 +87,7 @@ export default function Home() {
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
-  useEffect(() => setExt((s) => (s === "saved" || s === "failed" ? "ready" : s)), [form]);
+  useEffect(() => setExt((s) => (s === "saved" || s === "failed" || s === "noreply" ? "ready" : s)), [form]);
 
   // ---- 持久化（只在浏览器里）----
   useEffect(() => {
@@ -219,8 +219,8 @@ export default function Home() {
   function syncToExtension() {
     if (!profile.success) return;
     window.postMessage({ source: "offerpilot-web", type: "profile", profile: profile.data }, window.location.origin);
-    // 1.5 秒内没有回执，说明没装扩展
-    setTimeout(() => setExt((s) => (s === "ready" || s === "unknown" ? "unknown" : s)), 1500);
+    // 1.5 秒内没有回执：没装扩展，或者扩展刚更新过、这个页面里的连接已失效
+    setTimeout(() => setExt((s) => (s === "ready" ? "noreply" : s)), 1500);
   }
 
   const emptyText = filterActive

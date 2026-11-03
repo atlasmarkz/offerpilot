@@ -4,7 +4,7 @@ import type { CompanyType } from "@offerpilot/shared";
 import { flip } from "../lib/storage";
 import { SCHOOL_TAGS, TYPE_LABEL, type Form } from "../lib/profileForm";
 
-export type ExtState = "unknown" | "ready" | "saved" | "failed";
+export type ExtState = "unknown" | "ready" | "saved" | "failed" | "noreply";
 
 interface Props {
   form: Form;
@@ -20,6 +20,7 @@ const EXT_TEXT: Record<ExtState, string> = {
   saved: "已同步。打开岗位的投递页，点扩展图标“填写当前页面”。",
   failed: "同步失败：画像格式不对。",
   ready: "已检测到扩展，画像有改动后需要重新同步。",
+  noreply: "扩展没有回应：请先刷新本页再点一次（扩展刚更新、重装或重新加载后，已打开的页面要刷新才能连上）。",
   unknown: "未安装扩展时点击没有效果。填写由扩展完成，提交仍由你自己点击。",
 };
 
@@ -152,7 +153,7 @@ export function ProfileCard({ form, set, ext, canSync, onSync, cloud }: Props) {
         <button className="btn ghost sm" onClick={onSync} disabled={!canSync}>
           同步到浏览器扩展
         </button>
-        <span className="msg" style={{ margin: 0, color: ext === "failed" ? "var(--warn)" : "var(--faint)" }} role="status">
+        <span className="msg" style={{ margin: 0, color: ext === "failed" || ext === "noreply" ? "var(--warn)" : "var(--faint)" }} role="status">
           {EXT_TEXT[ext]}
         </span>
       </div>

@@ -4,6 +4,22 @@ import type { FillOutcome } from "../../adapters/types";
 const result = document.getElementById("result")!;
 const who = document.getElementById("who")!;
 const fillBtn = document.getElementById("fill") as HTMLButtonElement;
+const demoBtn = document.getElementById("demo") as HTMLButtonElement;
+const demoNote = document.getElementById("demo-note")!;
+
+/** 体验用的示例画像：明显是虚构的，不要拿去填真实的投递页。 */
+const DEMO_PROFILE: Profile = {
+  name: "张三（示例）",
+  school: "示例大学",
+  schoolTags: [],
+  major: "计算机科学与技术",
+  degree: "bachelor",
+  graduationYear: 2027,
+  cities: [],
+  targetCompanyTypes: [],
+  targetRoles: [],
+  experiences: [],
+};
 
 async function loadProfile(): Promise<Profile | null> {
   const { profile } = await browser.storage.local.get("profile");
@@ -22,14 +38,26 @@ function describe(o: FillOutcome): string {
   }
 }
 
-void loadProfile().then((p) => {
+async function refresh() {
+  const p = await loadProfile();
   who.textContent = p ? `当前画像：${p.school} · ${p.major}` : "还没有画像：请先在 OfferPilot 网页端点“同步到浏览器扩展”。";
+  // 没有画像时才提供示例入口，避免覆盖用户真实同步过来的画像
+  demoBtn.hidden = !!p;
+  demoNote.hidden = !!p;
+}
+
+void refresh();
+
+demoBtn.addEventListener("click", async () => {
+  await browser.storage.local.set({ profile: DEMO_PROFILE });
+  result.textContent = "已载入示例画像（虚构的）。现在打开一个投递表单（例如 OfferPilot 网站的“示例表单”页），再点“填写当前页面”。";
+  await refresh();
 });
 
 fillBtn.addEventListener("click", async () => {
   const profile = await loadProfile();
   if (!profile) {
-    result.textContent = "还没有画像，请先在 OfferPilot 网页端填写画像并点“同步到浏览器扩展”。";
+    result.textContent = "还没有画像，请先在 OfferPilot 网页端同步，或点下面的“用示例画像试用”。";
     return;
   }
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });

@@ -4,14 +4,20 @@
     <meta charset="UTF-8" />
     <title>OfferPilot</title>
     <style>
-      body { width: 260px; padding: 12px; font: 14px system-ui, sans-serif; }
-      button { width: 100%; padding: 8px; }
+      body { width: 280px; padding: 12px; font: 14px system-ui, sans-serif; color: #1c2129; }
+      button { width: 100%; padding: 8px; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.6; }
+      #demo { margin-top: 8px; background: #fff; border: 1px dashed #8792a6; border-radius: 6px; }
+      #demo-note { margin: 4px 0 0; color: #8792a6; font-size: 12px; }
       #result { margin-top: 8px; color: #555; white-space: pre-wrap; }
+      [hidden] { display: none !important; }
     </style>
   </head>
   <body>
     <div id="who" style="margin-bottom:8px;color:#555"></div>
     <button id="fill">填写当前页面</button>
+    <button id="demo" hidden>用示例画像试用</button>
+    <p id="demo-note" hidden>没有账号也能体验：载入一份虚构的示例画像，仅用于试用。</p>
     <div id="result"></div>
     <script type="module" src="./main.ts"></script>
   </body>

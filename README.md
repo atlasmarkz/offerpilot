@@ -160,7 +160,7 @@ npx wxt build                          # 产物在 .output/chrome-mv3
 
 在 Chrome 打开 `chrome://extensions`，开启“开发者模式”，“加载已解压的扩展程序”，选择 `apps/extension/.output/chrome-mv3`。
 
-上架 Chrome 应用商店的打包、文案、截图和提交清单见 [docs/CHROME_STORE.md](docs/CHROME_STORE.md)。
+上架材料：Edge 加载项商店（免费注册）见 [docs/EDGE_STORE.md](docs/EDGE_STORE.md)，Chrome 应用商店见 [docs/CHROME_STORE.md](docs/CHROME_STORE.md)。没有账号也可以先体验：点扩展图标里的“用示例画像试用”，再打开站点的 `/demo-form` 示例表单。
 
 使用：网页端填好画像 → 点“同步到浏览器扩展” → 打开官网投递页 → 点扩展图标“填写当前页面”。线上域名需要在构建时指定：`WXT_WEB_ORIGIN=https://你的域名 npx wxt build`。
 

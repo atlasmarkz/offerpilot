@@ -1,21 +1,27 @@
-import type { Profile } from "@offerpilot/shared";
+import { Profile } from "@offerpilot/shared";
 import { findAdapter } from "../adapters";
 import type { FillOutcome } from "../adapters/types";
 
+/**
+ * 填表脚本：不会自动注入任何网页，只在你点击扩展图标里的“填写当前页面”时，
+ * 由弹窗通过 activeTab 权限注入到当前这一个标签页，运行一次，把结果回报给弹窗。
+ */
 export default defineContentScript({
-  matches: ["<all_urls>"],
-  main() {
-    browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-      const msg = message as { type?: string; profile?: Profile };
+  registration: "runtime",
+  matches: ["*://*/*"],
+  async main() {
+    const { profile } = await browser.storage.local.get("profile");
+    const parsed = Profile.safeParse(profile);
+
+    let outcome: FillOutcome;
+    if (!parsed.success) {
+      outcome = { status: "failed", error: "还没有画像，请先在 OfferPilot 网页端同步" };
+    } else {
       const adapter = findAdapter(location.href);
-      if (msg.type !== "offerpilot:fill" || !msg.profile) {
-        sendResponse({ status: "failed", error: "无效的消息" } satisfies FillOutcome);
-      } else if (!adapter) {
-        sendResponse({ status: "failed", error: "当前页面暂无适配器" } satisfies FillOutcome);
-      } else {
-        adapter.fill(document, msg.profile).then(sendResponse);
-      }
-      return true; // 异步响应
-    });
+      outcome = adapter
+        ? await adapter.fill(document, parsed.data).catch((e: Error) => ({ status: "failed", error: e.message }) as FillOutcome)
+        : { status: "failed", error: "当前页面暂无适配器" };
+    }
+    await browser.runtime.sendMessage({ type: "offerpilot:result", outcome });
   },
 });

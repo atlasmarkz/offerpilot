@@ -5,6 +5,8 @@ export interface LlmConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
+  /** 推理型模型的思考强度（low / medium / high）。只用于站点自备模型；设成 low 能把简历解析从二十秒级降到几秒 */
+  reasoningEffort?: string;
 }
 
 /** 带“能直接显示给用户”的中文说明的错误。 */
@@ -91,7 +93,7 @@ export async function chat(
   messages: { role: "system" | "user"; content: string }[],
   opts: { json?: boolean; maxTokens?: number; timeoutMs?: number } = {},
 ): Promise<string> {
-  const send = async (withJsonMode: boolean) => {
+  const send = async (extras: boolean) => {
     let res: Response;
     try {
       res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -101,7 +103,8 @@ export async function chat(
           model: cfg.model,
           temperature: 0,
           ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
-          ...(withJsonMode ? { response_format: { type: "json_object" } } : {}),
+          ...(extras && opts.json ? { response_format: { type: "json_object" } } : {}),
+          ...(extras && cfg.reasoningEffort ? { reasoning_effort: cfg.reasoningEffort } : {}),
           messages,
         }),
         redirect: "manual", // 不跟随跳转：跳转目标没有经过地址校验
@@ -115,9 +118,9 @@ export async function chat(
     return res;
   };
 
-  let res = await send(!!opts.json);
-  // 有的兼容服务不支持 json 模式，会回 400/422：去掉后重试一次，格式由提示词约束
-  if (opts.json && (res.status === 400 || res.status === 422)) res = await send(false);
+  let res = await send(true);
+  // 有的兼容服务不支持 json 模式或思考强度参数，会回 400/422：去掉这些可选参数重试一次，格式由提示词约束
+  if ((opts.json || cfg.reasoningEffort) && (res.status === 400 || res.status === 422)) res = await send(false);
   if (!res.ok) throw upstreamError(res.status);
 
   const text = await res.text();

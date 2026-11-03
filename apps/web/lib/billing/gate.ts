@@ -14,7 +14,10 @@ export function serverLlm(): LlmConfig | undefined {
   }
   const { LLM_BASE_URL, LLM_API_KEY, LLM_MODEL } = process.env;
   if (!LLM_BASE_URL || !LLM_API_KEY || !LLM_MODEL) return undefined;
-  return { baseUrl: LLM_BASE_URL.replace(/\/$/, ""), apiKey: LLM_API_KEY, model: LLM_MODEL };
+  const baseUrl = LLM_BASE_URL.replace(/\/$/, "");
+  // MiniMax 的 M 系列默认会长时间“思考”，简历抽取不需要；可用 LLM_REASONING_EFFORT 覆盖（填 none 表示不传）
+  const effort = process.env.LLM_REASONING_EFFORT ?? (/minimax/i.test(baseUrl) ? "low" : undefined);
+  return { baseUrl, apiKey: LLM_API_KEY, model: LLM_MODEL, ...(effort && effort !== "none" ? { reasoningEffort: effort } : {}) };
 }
 
 export interface Granted {

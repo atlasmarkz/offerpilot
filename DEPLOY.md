@@ -58,6 +58,7 @@ npm run sync -w @offerpilot/crawler                                    # 把岗�
 | `SUPABASE_URL` | Supabase 项目地址 |
 | `SUPABASE_ANON_KEY` | anon 公钥 |
 | `LLM_BASE_URL` `LLM_API_KEY` `LLM_MODEL` | **可选**。用户可以在页面“模型设置”里填自己的 Base URL / API Key / 模型名（密钥只存在其浏览器里），那样费用由用户自己承担。这三项是你自备的兜底模型，只在用户没填时使用且受每日次数限制；**想让简历解析完全不花你的钱，就不要填** |
+| `LLM_REASONING_EFFORT` | **可选**。推理型模型的思考强度。地址含 `minimax` 时默认 `low`（实测简历解析从约 20 秒降到约 7 秒，结果质量没有明显差别）；其他服务默认不传；填 `none` 表示不传 |
 | `ALLOW_PRIVATE_LLM_URLS` | 默认不设。生产环境会拒绝 http 和内网地址（防止服务器被用来访问内网）；仅在你自托管、需要连内网模型时设为 `1` |
 | `RESUME_PER_IP_LIMIT` | 每个 IP 每天解析次数，默认 5 |
 | `RESUME_DAILY_LIMIT` | 全站每天解析次数，默认 200 |

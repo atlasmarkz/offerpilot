@@ -46,6 +46,9 @@ describe("parseJsonLoose", () => {
   it("extracts JSON wrapped in a code fence", () => {
     expect(parseJsonLoose('```json\n{"a":1}\n```')).toEqual({ a: 1 });
   });
+  it("ignores a reasoning model's <think> block, even with braces inside", () => {
+    expect(parseJsonLoose('<think>先想想 {不是json} 吧</think>\n{"a":2}')).toEqual({ a: 2 });
+  });
   it("throws on non-JSON", () => {
     expect(() => parseJsonLoose("抱歉")).toThrow(/无法解析/);
   });

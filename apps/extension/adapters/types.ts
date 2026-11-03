@@ -1,10 +1,13 @@
-import type { Profile } from "@offerpilot/shared";
+import type { Profile, ResumeData } from "@offerpilot/shared";
 import type { Extras } from "./formFill";
+import type { SectionResult } from "./sections";
 
 /** 识别到的站点模板名（如“飞书招聘”），展示给用户；缺少的字段交给用户在弹窗里补充。 */
 export interface FillMeta {
   template?: string;
   missing?: string[];
+  /** 分区块填写（教育、实习、项目等）的逐项核对结果 */
+  sections?: SectionResult[];
 }
 
 export type FillOutcome =
@@ -23,7 +26,7 @@ export interface SiteAdapter {
   matches: RegExp[];
   /** 检测当前页面是否出现验证码等阻断项 */
   detectBlocker(doc: Document): string | null;
-  fill(doc: Document, profile: Profile, extras?: Extras): Promise<FillOutcome>;
+  fill(doc: Document, profile: Profile, extras?: Extras, resume?: ResumeData): Promise<FillOutcome>;
 }
 
 /** 在 input/textarea 上写值并触发框架可感知的事件。 */

@@ -115,7 +115,7 @@ export function ancestorLabel(el: HTMLElement): string {
   return best;
 }
 
-function visible(el: HTMLElement): boolean {
+export function visible(el: HTMLElement): boolean {
   // jsdom 没有布局：offsetParent 恒为 null，所以只看显式隐藏
   const s = el.ownerDocument.defaultView?.getComputedStyle(el);
   return !(s && (s.display === "none" || s.visibility === "hidden")) && !el.hasAttribute("hidden");

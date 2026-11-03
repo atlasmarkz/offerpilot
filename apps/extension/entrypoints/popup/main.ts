@@ -1,5 +1,6 @@
 import { Profile, normalizeResume } from "@offerpilot/shared";
 import { EXTRA_FIELDS } from "../../adapters/formFill";
+import { summarize } from "../../adapters/sections";
 import type { FillOutcome } from "../../adapters/types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -93,6 +94,17 @@ function render(o: FillOutcome) {
     t.className = "tpl";
     t.textContent = `识别为：${o.template}`;
     resultBox.append(t);
+  }
+  if (o.sections?.length) {
+    const ul = document.createElement("ul");
+    ul.className = "sections";
+    for (const sec of o.sections) {
+      const li = document.createElement("li");
+      li.textContent = summarize(sec);
+      if (sec.fields.some((f) => f.status !== "ok")) li.className = "bad";
+      ul.append(li);
+    }
+    resultBox.append(ul);
   }
   if (o.missing?.length) resultBox.append(missingForm(o.missing));
   else if (o.status === "needs_user") {

@@ -1,4 +1,5 @@
 import { detectBlocker, fillCustomSelects, fillForm } from "./formFill";
+import { fillSections } from "./sections";
 import { detectTemplate } from "./templates";
 import type { SiteAdapter } from "./types";
 
@@ -12,20 +13,27 @@ export const genericAdapter: SiteAdapter = {
 
   detectBlocker,
 
-  async fill(doc, profile, extras = {}) {
+  async fill(doc, profile, extras = {}, resume) {
     const { template } = detectTemplate(doc);
-    const meta = { template: template.name };
+    const metaBase = { template: template.name };
     const blocker = detectBlocker(doc);
     const report = fillForm(doc, profile, { extras, template });
     await fillCustomSelects(report, template);
+    // 可重复区块（教育、实习、项目……）：有适配的模板才做，逐项读回核对
+    const sections = template.sections && resume ? (await fillSections(doc, resume, template)).sections : [];
+    for (const s of sections) if (s.filled) report.filled.push(`${s.title} ${s.filled} 条`);
+    const unsure = sections.flatMap((s) => s.fields.filter((f) => f.status !== "ok").map((f) => `${f.label}${f.note ? `（${f.note}）` : ""}`));
     const missing = report.missing;
-    if (blocker) return { status: "needs_user", reason: blocker, filledFields: report.filled, missing, ...meta };
-    if (report.filled.length === 0 && report.manual.length === 0 && report.kept.length === 0 && missing.length === 0)
-      return { status: "failed", error: "没有在当前页面找到可填写的字段（姓名/学校/专业/学历/毕业年份/手机/邮箱等）", ...meta };
-    if (report.manual.length)
-      return { status: "needs_user", reason: `这些字段需要你手动选择：${report.manual.join("、")}`, filledFields: report.filled, missing, ...meta };
-    if (missing.length)
-      return { status: "needs_user", reason: `页面上还有信息我没有：${missing.join("、")}。可以在下面补充后重新填写。`, filledFields: report.filled, missing, ...meta };
-    return { status: "filled", filledFields: report.filled, ...meta };
+    const meta = { ...metaBase, sections: sections.length ? sections : undefined };
+    const done = report.filled;
+    if (blocker) return { status: "needs_user", reason: blocker, filledFields: done, missing, ...meta };
+    if (done.length === 0 && report.manual.length === 0 && report.kept.length === 0 && missing.length === 0 && sections.every((s) => !s.kept))
+      return { status: "failed", error: "没有在当前页面找到可填写的字段（姓名/学校/专业/学历/毕业年份/手机/邮箱等）", ...metaBase };
+    const todo: string[] = [];
+    if (report.manual.length) todo.push(`需要你手动选择：${report.manual.join("、")}`);
+    if (unsure.length) todo.push(`这些项没有核对通过，请检查：${unsure.join("；")}`);
+    if (missing.length) todo.push(`页面上还有信息我没有：${missing.join("、")}（可在下面补充后重新填写）`);
+    if (todo.length) return { status: "needs_user", reason: todo.join("。"), filledFields: done, missing, ...meta };
+    return { status: "filled", filledFields: done, ...meta };
   },
 };

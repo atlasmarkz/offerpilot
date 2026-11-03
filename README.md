@@ -129,7 +129,7 @@
 不需要账号、数据库，也不需要付费。需要：Node.js 20+、本机已安装的 Google Chrome（采集器使用）。
 
 ```bash
-git clone git@github.com:AMark-CS/offerpilot.git
+git clone git@github.com:atlasmarkz/offerpilot.git
 cd offerpilot
 npm install
 

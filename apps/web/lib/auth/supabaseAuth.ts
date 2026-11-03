@@ -39,7 +39,7 @@ export function authConfig(): Cfg | undefined {
   }
 }
 
-function need(): Cfg {
+export function need(): Cfg {
   const c = authConfig();
   if (!c) throw new AuthError("账号功能未启用", 503);
   return c;
@@ -54,7 +54,7 @@ export function normalizeEmail(raw: unknown): string | undefined {
   return e.length <= 254 && EMAIL_RE.test(e) ? e : undefined;
 }
 
-async function gotrue(cfg: Cfg, path: string, init: RequestInit): Promise<Response> {
+export async function gotrue(cfg: Cfg, path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${cfg.origin}/auth/v1${path}`, {
       ...init,
@@ -67,7 +67,7 @@ async function gotrue(cfg: Cfg, path: string, init: RequestInit): Promise<Respon
   }
 }
 
-async function errorCode(res: Response): Promise<{ code: string; msg: string }> {
+export async function errorCode(res: Response): Promise<{ code: string; msg: string }> {
   try {
     const j = (await res.json()) as { error_code?: string; code?: string | number; msg?: string; message?: string; error_description?: string };
     return { code: String(j.error_code ?? j.code ?? ""), msg: String(j.msg ?? j.message ?? j.error_description ?? "") };
@@ -89,7 +89,7 @@ export async function sendOtp(email: string): Promise<void> {
   throw new AuthError("发送验证码失败，请稍后重试", 502);
 }
 
-function toTokens(j: Record<string, unknown>): Tokens {
+export function toTokens(j: Record<string, unknown>): Tokens {
   const user = (j.user ?? {}) as { id?: string; email?: string };
   if (typeof j.access_token !== "string" || typeof j.refresh_token !== "string" || !user.id)
     throw new AuthError("登录服务返回了意外的内容", 502);

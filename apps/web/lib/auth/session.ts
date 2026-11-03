@@ -57,8 +57,8 @@ export async function resolveSession(req: Request): Promise<Session | undefined>
 }
 
 /** 带 Set-Cookie 的 JSON 响应。 */
-export function jsonWith(data: unknown, init: { status?: number; cookies?: string[] } = {}): Response {
-  const headers = new Headers({ "Cache-Control": "no-store" });
+export function jsonWith(data: unknown, init: { status?: number; cookies?: string[]; headers?: Record<string, string> } = {}): Response {
+  const headers = new Headers({ "Cache-Control": "no-store", ...init.headers });
   for (const c of init.cookies ?? []) headers.append("Set-Cookie", c);
   return Response.json(data, { status: init.status ?? 200, headers });
 }

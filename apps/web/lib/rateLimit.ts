@@ -71,3 +71,11 @@ export function authVerifyLimiter(): Limiter {
   verifyLimiter ??= createLimiter(60, 5000, { what: "校验验证码", tail: "请明天再试" });
   return verifyLimiter;
 }
+
+let loginLimiter: Limiter | undefined;
+
+/** 密码登录尝试：防止暴力猜密码。每个 IP 每天 100 次（正常用户远用不到）。 */
+export function authLoginLimiter(): Limiter {
+  loginLimiter ??= createLimiter(100, 20000, { what: "登录尝试", tail: "请明天再试" });
+  return loginLimiter;
+}

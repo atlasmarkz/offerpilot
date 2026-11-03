@@ -102,25 +102,26 @@ Vercel 项目 → Settings → Domains 添加你的域名，再按提示到域�
 
 按目前的规模（几千条岗位、少量用户），这条免费链路够用；真正会先花钱的通常是**大模型调用**，其次是商业化后的 Vercel 套餐。
 
-## 五、账号登录（邮箱验证码）
+## 五、账号登录（邮箱 + 密码，验证码只用来验证邮箱）
 
-登录用 Supabase 自带的邮箱验证码，**不需要任何企业资质**。网页端的 `SUPABASE_URL` 和 `SUPABASE_ANON_KEY` 沿用现有的，不需要新增环境变量。需要在 Supabase 里做三件事：
+用户用**邮箱 + 密码**注册和登录。注册、找回密码时会给邮箱发一个验证码，只用来确认邮箱是本人的；之后日常登录不再收邮件。底层用 Supabase 自带的认证，**不需要任何企业资质**。网页端的 `SUPABASE_URL` 和 `SUPABASE_ANON_KEY` 沿用现有的，不需要新增环境变量。需要在 Supabase 里做这几件事：
 
 ### 1. 建表
 
 SQL Editor 里运行 `supabase/migrations/0003_user_data.sql`（可重复运行）。它会创建存画像和已选岗位的 `user_data` 表，开启行级安全（每人只能读写自己的行），并创建“用户自助删除账号”的函数。
 
-### 2. 邮件模板里要有验证码
+### 2. 打开邮箱验证，并把验证码设成 6 位
 
-Authentication → Email Templates，把 **Magic Link** 和 **Confirm signup** 两个模板的正文都改成包含 `{{ .Token }}`，例如：
+- Authentication → Sign In / Providers → Email：**Confirm email 保持开启**（注册必须先验证邮箱），**Email OTP Length 设为 6**（默认可能是 8）。网页和接口都不写死位数，以这里的设置为准。
+- Authentication → Email Templates：**Confirm signup** 和 **Reset Password** 两个模板的正文都要包含 `{{ .Token }}`，例如：
 
 ```
-<h2>OfferPilot 登录验证码</h2>
+<h2>OfferPilot 验证码</h2>
 <p>你的验证码是：<b>{{ .Token }}</b></p>
 <p>10 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p>
 ```
 
-两个都要改：新用户第一次登录发的是 Confirm signup，老用户发的是 Magic Link。默认模板只有链接、没有验证码，用户会收到邮件却没法输入。
+默认模板只有链接、没有验证码，用户会收到邮件却没法输入。注册发的是 Confirm signup，找回密码发的是 Reset Password。
 
 ### 3. 配置发信邮箱（SMTP）——这一步必须做
 
@@ -134,15 +135,18 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 
 配好后在 Authentication → Rate Limits 里确认“每小时发送邮件数”够用。
 
+**验证码邮件慢怎么办**：页面点完会立刻进入输入验证码的一步，并显示已等待多久。慢通常出在 SMTP 服务本身（Gmail 常要几秒到十几秒，还可能进垃圾箱）。浏览器开发者工具里看注册请求的 `Server-Timing: upstream;dur=…`，就是 Supabase 发邮件花的毫秒数：很大说明慢在邮件服务，换 Resend / Brevo 这类事务邮件服务会明显更快；很小说明慢在邮件投递。另外把 Vercel 函数区域设到离 Supabase 近的地方（Project Settings → Functions → Region）也能省下往返时间。
+
 ### 4. 验证
 
-打开线上页面，点右上角“登录 / 注册”，用自己的邮箱收验证码登录；填一点画像，等几秒看到“已同步到云端”；换个浏览器登录同一个邮箱，画像应该会自动出现。
+打开线上页面，点右上角“登录 / 注册”，用邮箱 + 密码注册，收验证码完成验证；再退出，用密码登录一次，并试一下“忘记密码”；填一点画像，等几秒看到“已同步到云端”；换个浏览器登录同一个邮箱，画像应该会自动出现。
 
 ### 说明
 
 - **没配 Supabase 时（本地文件模式）登录入口会自动隐藏**，不影响本地试用。
 - 登录状态存在 httpOnly 的 Cookie 里，最长 30 天。
 - 云端只保存画像和已选岗位；简历文件和大模型 API Key 永远不上云。
+- 密码规则：8~72 位，必须同时含字母和数字；登录失败提示不区分“邮箱不存在”和“密码错”。
 - 发验证码有两道限流：本站每个 IP 每天 `AUTH_CODE_PER_IP`（默认 20）次、全站 `AUTH_CODE_DAILY`（默认 500）次；Supabase 对同一邮箱还有每分钟一次的限制。被人刷接口时，建议再接入 Supabase 的验证码人机校验（Authentication → Attack Protection，支持 Cloudflare Turnstile / hCaptcha）。
 - 手机号、微信登录需要短信或微信开放平台的企业资质，条件具备后再作为新的登录方式接入，账号体系不用改。
 
@@ -166,7 +170,7 @@ SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复�
 - [ ] `.env` 没有被提交（`git status` 里看不到它）。
 - [ ] `service_role` 密钥只出现在本机 `.env` 和 GitHub Secrets 里。
 - [ ] 线上页面能看到已审核的岗位，看不到待审核的。
-- [ ] 已运行 `0003_user_data.sql`，邮件模板含 `{{ .Token }}`，并配置了自己的 SMTP；能用真实邮箱完成登录。
+- [ ] 已运行 `0003_user_data.sql`，Email OTP Length 为 6，Confirm signup / Reset Password 模板含 `{{ .Token }}`，并配置了自己的 SMTP；能用真实邮箱完成登录。
 - [ ] 开启计费时：`0004` 已运行，`SUPABASE_SERVICE_KEY` 仅设在服务端，未登录用站点模型会被拒绝，额度不足返回 402。
 - [ ] 已运行 `0005`，Storage 里 `resumes` 桶是 Private；免费账号传第 2 份附件会被拒，开通会员后可传到 3 份。
 - [ ] 隐私说明页（`/privacy`）打开正常，内容和你实际使用的大模型服务相符。

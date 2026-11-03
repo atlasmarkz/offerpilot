@@ -173,7 +173,14 @@ export function ResumePanel({
       )}
 
       <details className="fold">
-        <summary>模型设置{llm.apiKey ? "（已填写）" : "（用你自己的大模型解析）"}</summary>
+        <summary>
+          模型设置
+          {llm.baseUrl.trim() && llm.apiKey.trim() && llm.model.trim()
+            ? "（使用你自己的模型）"
+            : llm.baseUrl || llm.apiKey || llm.model
+              ? "（没填全，将使用站点模型）"
+              : "（可选：用你自己的大模型解析）"}
+        </summary>
         <div className="body">
           <input
             className="input"

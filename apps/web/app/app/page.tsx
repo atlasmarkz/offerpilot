@@ -165,7 +165,8 @@ export default function Home() {
       const body = new FormData();
       body.set("file", file);
       body.set("consent", "1");
-      if (llm.baseUrl || llm.apiKey || llm.model) {
+      // 三项都填全才用自己的模型；没填全就用站点提供的模型
+      if (llm.baseUrl.trim() && llm.apiKey.trim() && llm.model.trim()) {
         body.set("llmBaseUrl", llm.baseUrl);
         body.set("llmApiKey", llm.apiKey);
         body.set("llmModel", llm.model);

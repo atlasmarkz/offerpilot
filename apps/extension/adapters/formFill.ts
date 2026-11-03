@@ -60,6 +60,21 @@ export function labelOf(el: HTMLElement): string {
   return parts.map(clean).filter(Boolean).join(" ").slice(0, 80);
 }
 
+/**
+ * 兜底：有些站点（自研组件库）的标签既不是 label 也不在名字带 label 的节点里。
+ * 往上最多找 4 层，只看“里面只有这一个控件”的祖先，取它的文字当标签；文字太长说明是整段内容，不用。
+ */
+export function ancestorLabel(el: HTMLElement): string {
+  let node: HTMLElement | null = el.parentElement;
+  let best = "";
+  for (let i = 0; i < 4 && node; i++, node = node.parentElement) {
+    if (node.querySelectorAll("input, textarea, select").length !== 1) break;
+    const text = clean(node.textContent);
+    if (text && text.length <= 30) best = text;
+  }
+  return best;
+}
+
 function visible(el: HTMLElement): boolean {
   // jsdom 没有布局：offsetParent 恒为 null，所以只看显式隐藏
   const s = el.ownerDocument.defaultView?.getComputedStyle(el);
@@ -96,7 +111,7 @@ export function fillForm(doc: Document, profile: Profile): FormFillReport {
   for (const el of controls) {
     if (!visible(el)) continue;
     if (el instanceof HTMLInputElement && SKIP_TYPES.has(el.type)) continue;
-    const rule = ruleFor(labelOf(el));
+    const rule = ruleFor(labelOf(el)) ?? ruleFor(ancestorLabel(el));
     if (!rule || done.has(rule.key)) continue;
     const value = rule.value(profile);
     if (!value) continue;

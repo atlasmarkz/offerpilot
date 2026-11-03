@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Profile } from "@offerpilot/shared";
-import { detectBlocker, fillForm, labelOf } from "./formFill";
+import { ancestorLabel, detectBlocker, fillForm, labelOf } from "./formFill";
 
 const profile = Profile.parse({
   name: "张三",
@@ -88,5 +88,19 @@ describe("detectBlocker", () => {
     expect(detectBlocker(document)).toMatch(/验证码/);
     page(`<div>正常页面</div>`);
     expect(detectBlocker(document)).toBeNull();
+  });
+});
+
+describe("ancestorLabel fallback", () => {
+  it("fills fields whose label sits in an unnamed sibling node of a custom component library", () => {
+    page(`<div class="r"><div class="c1"><span>毕业院校</span></div><div class="c2"><div class="w"><input id="s"></div></div></div>
+          <div class="r"><div><span>专业</span></div><div><div><input id="m"></div></div></div>
+          <div class="section"><h3>教育经历 这是一段很长很长很长的说明文字用来超过三十个字的长度限制不应该被当成标签</h3><input id="x"><input id="y"></div>`);
+    expect(ancestorLabel(document.getElementById("s")!)).toBe("毕业院校");
+    const report = fillForm(document, profile);
+    expect(report.filled).toEqual(expect.arrayContaining(["学校", "专业"]));
+    expect(val("#s")).toBe("浙江大学");
+    expect(val("#m")).toBe("计算机科学与技术");
+    expect(val("#x")).toBe("");
   });
 });

@@ -28,12 +28,10 @@ export function UsageLine({ usage }: { usage: UsageInfo }) {
     <div className="acct-usage">
       <div>
         <b>{PLANS[usage.plan ?? "free"].name}</b>
-        {usage.plan !== "free" && (
-          <span>
-            {" "}
-            · 本期剩余 {usage.remaining}/{usage.quota} 次{end && `（${end} 到期）`}
-          </span>
-        )}
+        <span>
+          {" "}
+          · {usage.plan !== "free" ? "本期" : "本月免费"}剩余 {usage.remaining}/{usage.quota} 次{usage.plan !== "free" && end && `（${end} 到期）`}
+        </span>
       </div>
       <div>次数包：{usage.credits ?? 0} 次</div>
     </div>

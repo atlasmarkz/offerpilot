@@ -96,7 +96,7 @@ export default function AccountPage() {
                 <>
                   <dt>AI 额度</dt>
                   <dd>
-                    {plan !== "free" ? `本期剩余 ${u.remaining}/${u.quota} 次` : "免费版没有每月额度"}
+                    {plan !== "free" ? `本期剩余 ${u.remaining}/${u.quota} 次` : `本月免费剩余 ${u.remaining}/${u.quota} 次`}
                     {"　"}
                     次数包 {u.credits ?? 0} 次
                   </dd>
@@ -183,7 +183,7 @@ export default function AccountPage() {
                   <div style={{ color: "var(--muted)" }}>{PLANS[id].tagline}</div>
                   <ul>
                     <li>附件简历 {PLANS[id].attachments} 份</li>
-                    <li>{PLANS[id].monthlyQuota ? `每月 ${PLANS[id].monthlyQuota} 次 AI` : "自带模型不限次"}</li>
+                    <li>{`每月 ${PLANS[id].monthlyQuota} 次 AI`}</li>
                     <li>看板 {PLANS[id].boardItems} 条</li>
                     {PLANS[id].features
                       .filter((f) => f.soon)

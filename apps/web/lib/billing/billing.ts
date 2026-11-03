@@ -42,7 +42,7 @@ async function rpc(name: string, body: Record<string, unknown>): Promise<Respons
 
 export interface Charge {
   requestId: string;
-  source: "subscription" | "credits";
+  source: "subscription" | "free" | "credits";
 }
 
 /** 扣额度：先用订阅额度，再用次数包。额度不足抛 402。每次调用用新的 requestId，退还时凭它找回。 */
@@ -55,11 +55,11 @@ export async function consume(userId: string, feature: Feature): Promise<Charge>
     p_request: requestId,
   });
   if (res.ok) {
-    const source = (await res.json()) as "subscription" | "credits";
+    const source = (await res.json()) as Charge["source"];
     return { requestId, source };
   }
   const text = await res.text().catch(() => "");
-  if (text.includes("insufficient_quota")) throw new BillingError("额度不足，请购买次数包或订阅后继续使用", 402, "quota");
+  if (text.includes("insufficient_quota")) throw new BillingError("本月免费额度已用完，请购买次数包或订阅，也可以在“模型设置”里用自己的模型", 402, "quota");
   throw new BillingError("扣减额度失败，请稍后重试", 502);
 }
 
@@ -93,11 +93,12 @@ interface SubRow {
 }
 
 /** 把订阅行和钱包行整理成前端要显示的用量；订阅过期当作没订阅。 */
-export function summarizeUsage(sub: SubRow | undefined, credits: number | undefined, now = new Date()): Usage {
+export function summarizeUsage(sub: SubRow | undefined, credits: number | undefined, now = new Date(), freeUsed = 0): Usage {
   const active = !!sub && sub.plan !== "free" && !!sub.period_end && new Date(sub.period_end) > now;
   const plan = active ? planOf(sub?.plan) : "free";
-  const quota = active ? Number(sub?.quota ?? 0) : 0;
-  const used = active ? Number(sub?.used ?? 0) : 0;
+  // 订阅有效：用订阅额度；否则是免费版的每月小额度（freeUsed 是本月已用）
+  const quota = active ? Number(sub?.quota ?? 0) : PLANS.free.monthlyQuota;
+  const used = active ? Number(sub?.used ?? 0) : freeUsed;
   return {
     billing: true,
     plan,

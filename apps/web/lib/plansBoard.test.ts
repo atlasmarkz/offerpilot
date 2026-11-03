@@ -10,7 +10,7 @@ const ZIP = bytes(0x50, 0x4b, 0x03, 0x04);
 
 describe("plans", () => {
   it("has increasing quotas, three attachments for every paid tier and one for free", () => {
-    expect(PLAN_ORDER.map((p) => PLANS[p].monthlyQuota)).toEqual([0, 30, 100, 300]);
+    expect(PLAN_ORDER.map((p) => PLANS[p].monthlyQuota)).toEqual([3, 30, 100, 300]);
     expect(PLANS.free.attachments).toBe(1);
     for (const p of ["basic", "plus", "pro"] as const) expect(PLANS[p].attachments).toBe(3);
     expect(planOf("weird")).toBe("free");
@@ -21,6 +21,9 @@ describe("plans", () => {
     const u = summarizeUsage({ plan: "plus", quota: 100, used: 1, period_end: "2027-01-01T00:00:00Z" }, 0, now);
     expect(u).toMatchObject({ plan: "plus", limits: { attachments: 3, boardItems: 300 } });
     expect(summarizeUsage(undefined, 0, now).limits).toEqual({ attachments: 1, boardItems: 20 });
+    // 免费版：每月 3 次，已用的从本月流水算
+    expect(summarizeUsage(undefined, 0, now, 2)).toMatchObject({ plan: "free", quota: 3, used: 2, remaining: 1 });
+    expect(summarizeUsage(undefined, 0, now, 5).remaining).toBe(0);
   });
 });
 

@@ -248,7 +248,10 @@ export function LoginDialog({ onClose, onSuccess, initial = "login" }: Props) {
                     {waited >= 10 && "邮件有时会慢一些，请耐心等一下，也看看垃圾邮件箱。"}
                   </>
                 ) : (
-                  <>验证码已发送到 <b>{email}</b>，没收到请看垃圾邮件箱。</>
+                  <>
+                    验证码已发送到 <b>{email}</b>，没收到请看垃圾邮件箱。
+                    {step === "verify" && "如果这个邮箱以前登录过（旧版是验证码登录，没有设过密码），系统不会再发注册验证码，请返回登录页点“忘记密码”来设置密码。"}
+                  </>
                 )}
               </span>
             </div>

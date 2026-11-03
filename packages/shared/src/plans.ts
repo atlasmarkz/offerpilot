@@ -14,7 +14,7 @@ export interface PlanInfo {
   id: PlanId;
   name: string;
   tagline: string;
-  /** 每个订阅周期的 AI 次数（简历解析、修改建议等共用）；免费版没有，只能用次数包或自带模型 */
+  /** 每个周期的 AI 次数（简历解析、修改建议等共用）。免费版是每个自然月 3 次（数据库 0006 里同样写了 3，要一起改），用完可买次数包或自带模型 */
   monthlyQuota: number;
   /** 附件简历个数上限 */
   attachments: number;
@@ -30,7 +30,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     id: "free",
     name: "免费版",
     tagline: "先把岗位筛清楚",
-    monthlyQuota: 0,
+    monthlyQuota: 3,
     attachments: 1,
     boardItems: 20,
     features: [
@@ -40,6 +40,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { text: "简历在线编辑与导出 PDF" },
       { text: "1 份附件简历" },
       { text: "投递看板（最多 20 条）" },
+      { text: "每月 3 次 AI（简历解析、修改建议）" },
       { text: "自带大模型 Key 使用 AI 功能，不限次数" },
     ],
   },

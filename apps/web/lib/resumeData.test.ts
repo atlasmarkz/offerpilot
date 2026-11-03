@@ -92,8 +92,8 @@ describe("billing helpers", () => {
     });
     expect(summarizeUsage({ plan: "pro", quota: 100, used: 30, period_end: "2026-11-01T00:00:00Z" }, 2, now)).toMatchObject({
       plan: "free",
-      quota: 0,
-      remaining: 0,
+      quota: 3,
+      remaining: 3,
       credits: 2,
     });
     expect(summarizeUsage({ plan: "pro", quota: 10, used: 99, period_end: "2027-01-01T00:00:00Z" }, -4, now)).toMatchObject({ remaining: 0, credits: 0 });

@@ -51,7 +51,7 @@ export function labelOf(el: HTMLElement): string {
   // 表单项容器：UI 库里标签通常是控件的兄弟或叔伯节点
   // 始终读一遍：placeholder 常是“请输入/请选择”这种没有信息量的文字
   {
-    const item = el.closest("[class*=form-item], [class*=FormItem], [class*=field], [class*=form_item], .el-form-item, .ant-form-item");
+    const item = el.closest("[class*=form-item], [class*=FormItem], [class*=field], [class*=form_item], [class*=form__item], .el-form-item, .ant-form-item");
     if (item) {
       const lab = item.querySelector("label, [class*=label], [class*=title]");
       if (lab) parts.push(lab.textContent ?? "");
@@ -100,11 +100,13 @@ export interface FormFillReport {
   manual: string[];
   /** 控件本身已有内容，没有覆盖 */
   kept: string[];
+  /** 只读的输入框外壳（自定义下拉）：可以试着点开、选对应选项，见 fillCustomSelects */
+  pending: { key: string; el: HTMLElement; words: string[] }[];
 }
 
 /** 扫描页面上的表单控件并按标签填写。不提交、不点击任何按钮。 */
 export function fillForm(doc: Document, profile: Profile): FormFillReport {
-  const report: FormFillReport = { filled: [], manual: [], kept: [] };
+  const report: FormFillReport = { filled: [], manual: [], kept: [], pending: [] };
   const done = new Set<string>();
   const controls = doc.querySelectorAll<HTMLElement>("input, textarea, select");
 
@@ -133,6 +135,7 @@ export function fillForm(doc: Document, profile: Profile): FormFillReport {
     // 只读输入框通常是自定义下拉/日期选择器的外壳，直接写值没有用
     if (input.readOnly) {
       report.manual.push(rule.key);
+      report.pending.push({ key: rule.key, el: input, words: rule.key === "学历" ? DEGREE_WORDS[profile.degree] : [value.toLowerCase()] });
       continue;
     }
     setInputValue(input, value);
@@ -148,4 +151,42 @@ export function detectBlocker(doc: Document): string | null {
   if (doc.querySelector("[class*=captcha i], [id*=captcha i], iframe[src*=captcha i], [class*=geetest i], [class*=slider-verify i]"))
     return "页面出现验证码，请手动完成";
   return null;
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function fire(el: Element, type: string) {
+  el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+}
+
+/**
+ * 自定义下拉（飞书招聘 ud__select、Ant Design Select 等）：点开，在弹出的选项里找文字匹配的点一下。
+ * 找不到就按 Esc 关掉，交给用户手动选；不会碰任何提交按钮。
+ */
+export async function pickCustomSelect(input: HTMLElement, words: string[]): Promise<boolean> {
+  const doc = input.ownerDocument;
+  const opener = input.closest<HTMLElement>("[class*=select__selector], [class*=select-selector], [class*=select]") ?? input;
+  for (const t of ["mousedown", "mouseup", "click"]) fire(opener, t);
+  for (let i = 0; i < 6; i++) {
+    await wait(120);
+    const options = [...doc.querySelectorAll<HTMLElement>("[role=option], [class*=select__option], [class*=select-option], [class*=option-item]")].filter(visible);
+    const hit = options.find((o) => words.some((w) => (o.textContent ?? "").toLowerCase().includes(w)));
+    if (hit) {
+      for (const t of ["mousedown", "mouseup", "click"]) fire(hit, t);
+      return true;
+    }
+  }
+  doc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  return false;
+}
+
+/** 依次尝试自定义下拉；选上了的从“需手动”移到“已填写”。 */
+export async function fillCustomSelects(report: FormFillReport): Promise<void> {
+  for (const p of report.pending) {
+    if (report.filled.includes(p.key)) continue;
+    if (await pickCustomSelect(p.el, p.words)) {
+      report.filled.push(p.key);
+      report.manual = report.manual.filter((k) => k !== p.key);
+    }
+  }
 }

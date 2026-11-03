@@ -1,4 +1,4 @@
-import { detectBlocker, fillForm } from "./formFill";
+import { detectBlocker, fillCustomSelects, fillForm } from "./formFill";
 import type { SiteAdapter } from "./types";
 
 /**
@@ -14,6 +14,7 @@ export const genericAdapter: SiteAdapter = {
   async fill(doc, profile) {
     const blocker = detectBlocker(doc);
     const report = fillForm(doc, profile);
+    await fillCustomSelects(report);
     if (blocker) return { status: "needs_user", reason: blocker, filledFields: report.filled };
     if (report.filled.length === 0 && report.manual.length === 0 && report.kept.length === 0)
       return { status: "failed", error: "没有在当前页面找到可填写的基础信息字段（姓名/学校/专业/学历/毕业年份）" };

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Profile } from "@offerpilot/shared";
-import { ancestorLabel, detectBlocker, fillForm, labelOf } from "./formFill";
+import { ancestorLabel, detectBlocker, fillCustomSelects, fillForm, labelOf } from "./formFill";
 
 const profile = Profile.parse({
   name: "张三",
@@ -102,5 +102,43 @@ describe("ancestorLabel fallback", () => {
     expect(val("#s")).toBe("浙江大学");
     expect(val("#m")).toBe("计算机科学与技术");
     expect(val("#x")).toBe("");
+  });
+});
+
+describe("Feishu-style (ud__) forms and custom selects", () => {
+  const ud = `
+    <div class="ud__form__item"><div class="ud__form__item__label">毕业院校</div>
+      <div class="ud__input-input-wrap"><span class="ud__input-input__placeholder__wrapper"><input id="s" class="ud__native-input"></span></div></div>
+    <div class="ud__form__item"><div class="ud__form__item__label">学历</div>
+      <div class="ud__select"><div class="ud__select__selector" id="sel"><span class="ud__select__selector__search"><input id="d" class="ud__select__selector__search__input" readonly></span></div></div></div>`;
+
+  it("finds ud__form__item labels", () => {
+    page(ud);
+    expect(labelOf(document.getElementById("s")!)).toContain("毕业院校");
+    expect(fillForm(document, profile).filled).toContain("学校");
+    expect(val("#s")).toBe("浙江大学");
+  });
+
+  it("opens a readonly select, clicks the matching option, and leaves it manual when none matches", async () => {
+    page(ud);
+    const sel = document.getElementById("sel")!;
+    let clicked = "";
+    sel.addEventListener("mousedown", () => {
+      const pop = document.createElement("div");
+      pop.innerHTML = `<div class="ud__select__option">本科</div><div class="ud__select__option">硕士</div>`;
+      document.body.append(pop);
+      pop.querySelectorAll(".ud__select__option").forEach((o) => o.addEventListener("click", () => (clicked = o.textContent ?? "")));
+    });
+    const report = fillForm(document, profile);
+    expect(report.manual).toContain("学历");
+    await fillCustomSelects(report);
+    expect(clicked).toBe("硕士");
+    expect(report.filled).toContain("学历");
+    expect(report.manual).not.toContain("学历");
+
+    page(ud); // 没有任何选项弹出：保持手动
+    const r2 = fillForm(document, profile);
+    await fillCustomSelects(r2);
+    expect(r2.manual).toContain("学历");
   });
 });

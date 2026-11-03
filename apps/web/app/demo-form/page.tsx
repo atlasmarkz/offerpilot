@@ -45,7 +45,7 @@ export default function DemoForm() {
         <p style={{ color: "#6b7482", margin: "0 0 24px" }}>
           这是示例投递表单，仅用于体验 OfferPilot 浏览器扩展的填表功能。这里不会收集或发送你填写的任何内容。
         </p>
-        <form className="ant-form" onSubmit={(e) => e.preventDefault()}>
+        <form className="ant-form">
           <Row title="姓名">
             <input id="n" style={input} />
           </Row>

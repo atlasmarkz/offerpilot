@@ -337,6 +337,21 @@ export function LoginDialog({ onClose, onSuccess, initial = "login" }: Props) {
             </button>
           </div>
         )}
+        {step === "verify" && (
+          <div style={{ marginTop: 10, textAlign: "center" }}>
+            <button
+              className="btn ghost sm"
+              disabled={sendingSince !== undefined}
+              onClick={() => {
+                setPassword("");
+                setPassword2("");
+                void sendCodeThen("reset", "verify", "/api/auth/forgot", { email });
+              }}
+            >
+              这个邮箱以前登录过？用验证码设置密码
+            </button>
+          </div>
+        )}
         {canVerify && step === "login" && (
           <div style={{ marginTop: 10, textAlign: "center" }}>
             <button

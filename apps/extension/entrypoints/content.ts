@@ -10,8 +10,10 @@ export default defineContentScript({
   registration: "runtime",
   matches: ["*://*/*"],
   async main() {
-    const { profile } = await browser.storage.local.get("profile");
+    const { profile, extras } = await browser.storage.local.get(["profile", "extras"]);
     const parsed = Profile.safeParse(profile);
+    const extraValues: Record<string, string> =
+      extras && typeof extras === "object" ? Object.fromEntries(Object.entries(extras).filter(([, v]) => typeof v === "string")) : {};
 
     let outcome: FillOutcome;
     if (!parsed.success) {
@@ -19,7 +21,7 @@ export default defineContentScript({
     } else {
       const adapter = findAdapter(location.href);
       outcome = adapter
-        ? await adapter.fill(document, parsed.data).catch((e: Error) => ({ status: "failed", error: e.message }) as FillOutcome)
+        ? await adapter.fill(document, parsed.data, extraValues).catch((e: Error) => ({ status: "failed", error: e.message }) as FillOutcome)
         : { status: "failed", error: "当前页面暂无适配器" };
     }
     await browser.runtime.sendMessage({ type: "offerpilot:result", outcome });

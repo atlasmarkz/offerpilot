@@ -4,7 +4,7 @@ export default defineConfig({
   manifest: {
     name: "OfferPilot 校招填表助手",
     // 商店短描述上限 132 字符
-    description: "在校招投递页一键填入你的基础信息（姓名、学校、专业、学历、毕业年份）。只填不提交，验证码由你自己完成。",
+    description: "自动识别飞书、Moka、北森等校招投递页并一键填入你的信息，缺什么提示你补。只填不提交，验证码由你自己完成。",
     // storage：保存你同步过来的画像；activeTab + scripting：仅在你点击图标时，向当前这一个标签页注入填表脚本
     permissions: ["storage", "activeTab", "scripting"],
     minimum_chrome_version: "109",

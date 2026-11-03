@@ -1,10 +1,17 @@
 import type { Profile } from "@offerpilot/shared";
+import type { Extras } from "./formFill";
+
+/** 识别到的站点模板名（如“飞书招聘”），展示给用户；缺少的字段交给用户在弹窗里补充。 */
+export interface FillMeta {
+  template?: string;
+  missing?: string[];
+}
 
 export type FillOutcome =
-  | { status: "filled"; filledFields: string[] }
+  | ({ status: "filled"; filledFields: string[] } & FillMeta)
   /** 遇到验证码、短信验证、无法确定的必填项等，必须交回用户处理 */
-  | { status: "needs_user"; reason: string; filledFields: string[] }
-  | { status: "failed"; error: string };
+  | ({ status: "needs_user"; reason: string; filledFields: string[] } & FillMeta)
+  | ({ status: "failed"; error: string } & FillMeta);
 
 /**
  * 每个投递站点一个适配器。适配器只负责“填”，
@@ -16,7 +23,7 @@ export interface SiteAdapter {
   matches: RegExp[];
   /** 检测当前页面是否出现验证码等阻断项 */
   detectBlocker(doc: Document): string | null;
-  fill(doc: Document, profile: Profile): Promise<FillOutcome>;
+  fill(doc: Document, profile: Profile, extras?: Extras): Promise<FillOutcome>;
 }
 
 /** 在 input/textarea 上写值并触发框架可感知的事件。 */

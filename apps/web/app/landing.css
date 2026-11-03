@@ -127,3 +127,56 @@ html { scroll-behavior: smooth; }
 .plan-box.cur { border: 2px solid var(--brand); background: var(--brand-soft); }
 .plan-box h3 { margin: 0 0 4px; font-size: 15px; }
 .plan-box ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); }
+
+/* ---------- 看板数据概览 ---------- */
+.dash { margin-bottom: 18px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.kpi { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(180deg, #4f6bf0, #6d4bd0); }
+.kpi.ok::before { background: var(--ok); }
+.kpi-label { color: var(--muted); font-size: 12.5px; }
+.kpi-value { font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi.ok .kpi-value { color: var(--ok); }
+.kpi-sub { color: var(--faint); font-size: 12px; }
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dash-card.panel { margin-top: 0; }
+.dash-note, .dash-empty { color: var(--faint); font-size: 12.5px; margin: 10px 0 0; }
+.dash-empty { margin: 4px 0 0; padding: 18px 0; text-align: center; }
+.dash-sub { color: var(--muted); font-size: 12.5px; margin: 14px 0 6px; }
+
+.funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.funnel li { display: grid; grid-template-columns: 54px 1fr 28px 40px; align-items: center; gap: 8px; font-size: 13px; }
+.f-label { color: var(--muted); }
+.f-track { height: 14px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.f-track i { display: block; height: 100%; border-radius: 7px; background: var(--brand); transition: width .4s; }
+.f-track i.f-todo { background: var(--faint); }
+.f-track i.f-written_test { background: #6d4bd0; }
+.f-track i.f-interview { background: #b45ad6; }
+.f-track i.f-offer { background: var(--ok); }
+.f-num { text-align: right; font-variant-numeric: tabular-nums; }
+.f-conv { color: var(--faint); font-size: 12px; }
+
+.bars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; height: 150px; align-items: end; }
+.bar-col { display: grid; grid-template-rows: 16px 1fr 18px; justify-items: center; height: 100%; min-width: 0; }
+.bar-n { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-fill { align-self: end; width: 100%; max-width: 34px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--brand-soft); border: 1px solid var(--brand); transition: height .4s; }
+.bar-fill[data-last] { background: var(--brand); }
+.bar-x { font-size: 11px; color: var(--faint); }
+
+.remind { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.remind li { display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); border-left: 3px solid var(--warn); font-size: 13px; }
+.remind li.todo-old { border-left-color: var(--faint); }
+.remind li span { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+.meters { display: grid; gap: 12px; }
+.meter-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; }
+.meter-top b { color: var(--text); font-variant-numeric: tabular-nums; }
+.meter-bar { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.meter-bar i { display: block; height: 100%; background: var(--brand); border-radius: 4px; }
+.meter-bar i.hot { background: var(--warn); }
+.dash .chip { padding: 1px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; }
+.dash .chip em { color: var(--faint); font-style: normal; margin-left: 4px; }
+.dash .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-grid { grid-template-columns: 1fr; } }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { BoardDashboard } from "../../components/BoardDashboard";
 import { TopBar } from "../../components/TopBar";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { BOARD_LABEL, BOARD_STATUSES, type BoardItem, type BoardStatus } from "../../lib/board";
@@ -126,6 +127,12 @@ export default function BoardPage() {
             还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。
           </div>
         ) : (
+          <>
+            <BoardDashboard items={items} usage={session.usage} />
+            <div className="list-head" style={{ marginBottom: 10 }}>
+              <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>
+              <span className="count">拖动卡片可更改状态</span>
+            </div>
           <div className="board-cols">
             {BOARD_STATUSES.map((st) => {
               const col = items.filter((x) => x.status === st);
@@ -187,6 +194,7 @@ export default function BoardPage() {
               );
             })}
           </div>
+          </>
         )}
       </main>
 

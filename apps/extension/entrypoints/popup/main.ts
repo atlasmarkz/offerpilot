@@ -1,4 +1,5 @@
 import { Profile } from "@offerpilot/shared";
+import { EXTRA_FIELDS } from "../../adapters/formFill";
 import type { FillOutcome } from "../../adapters/types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -79,11 +80,58 @@ function render(o: FillOutcome) {
   note.textContent =
     o.status === "filled" ? "请检查填好的内容，然后自己点击提交。" : o.status === "needs_user" ? o.reason : o.error;
   resultBox.append(note);
-  if (o.status === "needs_user") {
+  if (o.template) {
+    const t = document.createElement("p");
+    t.className = "tpl";
+    t.textContent = `识别为：${o.template}`;
+    resultBox.append(t);
+  }
+  if (o.missing?.length) resultBox.append(missingForm(o.missing));
+  else if (o.status === "needs_user") {
     const more = document.createElement("p");
     more.textContent = "处理完后，请检查内容并自己点击提交。";
     resultBox.append(more);
   }
+}
+
+/** 页面要但我们没有的信息：让用户补充，存在本机，补完自动重新填写。 */
+function missingForm(missing: string[]): HTMLElement {
+  const form = document.createElement("form");
+  form.className = "missing";
+  const inputs = new Map<string, HTMLInputElement | HTMLSelectElement>();
+  for (const key of missing) {
+    const def = EXTRA_FIELDS.find((f) => f.key === key);
+    const row = document.createElement("label");
+    const name = document.createElement("span");
+    name.textContent = key;
+    let input: HTMLInputElement | HTMLSelectElement;
+    if (def?.options) {
+      input = document.createElement("select");
+      input.append(new Option("请选择", ""), ...def.options.map((o) => new Option(o, o)));
+    } else {
+      input = document.createElement("input");
+      input.placeholder = def?.hint ?? "";
+    }
+    inputs.set(key, input);
+    row.append(name, input);
+    form.append(row);
+  }
+  const btn = document.createElement("button");
+  btn.type = "submit";
+  btn.className = "primary small";
+  btn.textContent = "保存并重新填写";
+  const hint = document.createElement("small");
+  hint.textContent = "只保存在这台电脑的浏览器里，不会上传。";
+  form.append(btn, hint);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { extras } = await browser.storage.local.get("extras");
+    const next: Record<string, string> = { ...(extras && typeof extras === "object" ? (extras as Record<string, string>) : {}) };
+    for (const [k, el] of inputs) if (el.value.trim()) next[k] = el.value.trim();
+    await browser.storage.local.set({ extras: next });
+    void runFill();
+  });
+  return form;
 }
 
 void refresh();
@@ -112,7 +160,9 @@ demoBtn.addEventListener("click", async () => {
   resultBox.append(h, p);
 });
 
-fillBtn.addEventListener("click", async () => {
+fillBtn.addEventListener("click", () => void runFill());
+
+async function runFill() {
   const profile = await loadProfile();
   if (!profile) {
     render({ status: "failed", error: "还没有画像：请先在网站同步画像，或点“用示例画像试用”。" });
@@ -151,4 +201,4 @@ fillBtn.addEventListener("click", async () => {
   render(outcome);
   fillBtn.disabled = false;
   fillBtn.textContent = "填写当前页面";
-});
+}

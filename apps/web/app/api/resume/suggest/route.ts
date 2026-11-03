@@ -4,6 +4,7 @@ import { normalizeResume, resumeToText, withinSize } from "../../../../lib/resum
 import { buildSuggestInput, normalizeSuggestions, SUGGEST_SYSTEM_PROMPT } from "../../../../lib/suggest";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const fail = (error: string, status: number) => Response.json({ error }, { status });
 
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
         { role: "system", content: SUGGEST_SYSTEM_PROMPT },
         { role: "user", content: buildSuggestInput(resume, role) },
       ],
-      { json: true, timeoutMs: 90_000 },
+      { json: true, timeoutMs: 110_000 },
     );
     const suggestions = normalizeSuggestions(parseJsonLoose(content));
     // 模型一条有效建议都没给，等于没服务：不收费

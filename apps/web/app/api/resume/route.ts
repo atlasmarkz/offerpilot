@@ -4,6 +4,8 @@ import { chat, LlmError, parseJsonLoose } from "../../../lib/llmConfig";
 import { MAX_RESUME_CHARS, normalizeDraft, RESUME_SYSTEM_PROMPT } from "../../../lib/resume";
 
 export const dynamic = "force-dynamic";
+// 推理型模型解析一份简历可能要一两分钟，默认的函数时限会先把请求掐断
+export const maxDuration = 120;
 
 const fail = (error: string, status: number) => Response.json({ error }, { status });
 
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
         { role: "system", content: RESUME_SYSTEM_PROMPT },
         { role: "user", content: text.slice(0, MAX_RESUME_CHARS) },
       ],
-      { json: true },
+      { json: true, timeoutMs: 110_000 },
     );
     const draft = normalizeDraft(parseJsonLoose(content));
     ok = true;

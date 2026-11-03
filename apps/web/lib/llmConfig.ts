@@ -131,7 +131,9 @@ export async function chat(
 }
 
 /** 模型有时会把 JSON 包在 ```json 代码块里，取出第一个完整对象再解析。 */
-export function parseJsonLoose(text: string): unknown {
+export function parseJsonLoose(raw: string): unknown {
+  // 推理型模型（MiniMax M 系列等）会先输出 <think>…</think>，里面可能带花括号，先去掉
+  const text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "");
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) throw new LlmError("模型返回的内容无法解析，请重试", 502);

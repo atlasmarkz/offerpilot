@@ -8,7 +8,7 @@ import { LoginDialog } from "./LoginDialog";
 
 interface Props {
   session: ReturnType<typeof useSession>;
-  active: "jobs" | "resume";
+  active: "jobs" | "resume" | "board" | "account";
   status?: SyncStatus;
   /** 导航右侧的统计等内容 */
   children?: ReactNode;
@@ -20,18 +20,21 @@ export function TopBar({ session, active, status, children }: Props) {
   return (
     <>
       <header className="topbar">
-        <a className="logo" href="/" aria-label="OfferPilot 首页">
+        <a className="logo" href="/app" aria-label="OfferPilot">
           <picture>
             <source media="(prefers-color-scheme: dark)" srcSet="/logo-dark.png" />
             <img src="/logo.png" alt="OfferPilot" height={32} />
           </picture>
         </a>
         <nav className="nav" aria-label="主导航">
-          <a href="/" aria-current={active === "jobs" ? "page" : undefined}>
+          <a href="/app" aria-current={active === "jobs" ? "page" : undefined}>
             岗位
           </a>
           <a href="/resume" aria-current={active === "resume" ? "page" : undefined}>
             简历工作台
+          </a>
+          <a href="/board" aria-current={active === "board" ? "page" : undefined}>
+            投递看板
           </a>
         </nav>
         <span className="spacer" />

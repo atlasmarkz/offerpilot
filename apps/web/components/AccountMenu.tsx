@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PLANS } from "@offerpilot/shared";
 import type { SyncStatus } from "../hooks/useCloudSync";
 import type { AccountUser, UsageInfo } from "../hooks/useSession";
 
@@ -26,8 +27,8 @@ export function UsageLine({ usage }: { usage: UsageInfo }) {
   return (
     <div className="acct-usage">
       <div>
-        <b>{usage.plan === "pro" ? "订阅会员" : "免费账号"}</b>
-        {usage.plan === "pro" && (
+        <b>{PLANS[usage.plan ?? "free"].name}</b>
+        {usage.plan !== "free" && (
           <span>
             {" "}
             · 本期剩余 {usage.remaining}/{usage.quota} 次{end && `（${end} 到期）`}
@@ -75,6 +76,19 @@ export function AccountMenu({ user, status, usage, onLogin, onLogout, onDelete }
             {STATUS_TEXT[status]}
           </div>
         )}
+        <a className="acct-item" href="/account">
+          账户信息与会员
+        </a>
+        <a className="acct-item" href="/board">
+          投递看板
+        </a>
+        <a className="acct-item" href="/resume">
+          我的简历
+        </a>
+        <a className="acct-item" href="/account#attachments">
+          附件简历
+        </a>
+        <div className="acct-sep" />
         <button className="acct-item" onClick={onLogout}>
           退出登录
         </button>

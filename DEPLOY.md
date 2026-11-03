@@ -157,6 +157,10 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 4. 支付接入前，用管理员命令手动发放额度：`npm run billing -w @offerpilot/crawler -- grant 邮箱 20`。
 5. 自托管（给用户自己部署）时**不要**设 `BILLING_ENABLED`，所有功能不计费，用户在页面“模型设置”或环境变量里填自己的模型。
 
+### 附件简历、投递看板、会员等级（0005）
+
+SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复运行）。它会创建 `attachment`、`board_item`、`app_settings` 表，数量上限触发器，以及私有存储桶 `resumes` 及其存储策略。运行后到 Supabase 的 Storage 页面确认 `resumes` 桶存在且是 **Private**。
+
 ## 七、上线前自检
 
 - [ ] `.env` 没有被提交（`git status` 里看不到它）。
@@ -164,6 +168,7 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 - [ ] 线上页面能看到已审核的岗位，看不到待审核的。
 - [ ] 已运行 `0003_user_data.sql`，邮件模板含 `{{ .Token }}`，并配置了自己的 SMTP；能用真实邮箱完成登录。
 - [ ] 开启计费时：`0004` 已运行，`SUPABASE_SERVICE_KEY` 仅设在服务端，未登录用站点模型会被拒绝，额度不足返回 402。
+- [ ] 已运行 `0005`，Storage 里 `resumes` 桶是 Private；免费账号传第 2 份附件会被拒，开通会员后可传到 3 份。
 - [ ] 隐私说明页（`/privacy`）打开正常，内容和你实际使用的大模型服务相符。
 - [ ] 大模型服务商处已设置月度额度上限。
 - [ ] 岗位只展示摘要并跳转官网投递；对外推广前，再核对各公司网站的使用条款与 `robots.txt`。

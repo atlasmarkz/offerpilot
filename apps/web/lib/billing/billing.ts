@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { PLANS, planOf, type PlanId } from "@offerpilot/shared";
 import { authHeaders, supabaseOrigin } from "../jobsSource";
 
 /** 会消耗额度的功能。每次调用扣多少次，集中放在这里，调价只改这一处。 */
 export type Feature = "resume_parse" | "resume_suggest" | "resume_tailor";
 export const UNIT_COST: Record<Feature, number> = { resume_parse: 1, resume_suggest: 1, resume_tailor: 1 };
 
-/** 订阅（Pro）每个周期的额度；所有大模型功能共用这一份。 */
-export const PRO_QUOTA = 100;
+/** 默认订阅额度取 Plus（每月 100 次）；各等级的额度见 packages/shared 的 PLANS。 */
+export const PRO_QUOTA = PLANS.plus.monthlyQuota;
 
 export class BillingError extends Error {
   constructor(
@@ -74,12 +75,14 @@ export async function refund(requestId: string): Promise<void> {
 
 export interface Usage {
   billing: boolean;
-  plan: "free" | "pro";
+  plan: PlanId;
   quota: number;
   used: number;
   remaining: number;
   periodEnd: string | null;
   credits: number;
+  /** 该等级的附件简历、看板条数上限 */
+  limits: { attachments: number; boardItems: number };
 }
 
 interface SubRow {
@@ -92,11 +95,13 @@ interface SubRow {
 /** 把订阅行和钱包行整理成前端要显示的用量；订阅过期当作没订阅。 */
 export function summarizeUsage(sub: SubRow | undefined, credits: number | undefined, now = new Date()): Usage {
   const active = !!sub && sub.plan !== "free" && !!sub.period_end && new Date(sub.period_end) > now;
+  const plan = active ? planOf(sub?.plan) : "free";
   const quota = active ? Number(sub?.quota ?? 0) : 0;
   const used = active ? Number(sub?.used ?? 0) : 0;
   return {
     billing: true,
-    plan: active ? "pro" : "free",
+    plan,
+    limits: { attachments: PLANS[plan].attachments, boardItems: PLANS[plan].boardItems },
     quota,
     used,
     remaining: Math.max(quota - used, 0),

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Job, Profile } from "@offerpilot/shared";
+import { useState } from "react";
 import { explainJob } from "../lib/match";
 import { CompanyTag } from "./JobList";
 
@@ -10,9 +11,12 @@ interface Props {
   picked: boolean;
   onToggle: () => void;
   onClose: () => void;
+  /** 登录后才有：把岗位加入投递看板，返回给用户看的结果文字 */
+  onAddBoard?: () => Promise<string>;
 }
 
-export function JobDetail({ job, profile, picked, onToggle, onClose }: Props) {
+export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard }: Props) {
+  const [boardMsg, setBoardMsg] = useState<string>();
   const checks = profile ? explainJob(profile, job) : [];
   const host = (() => {
     try {
@@ -79,6 +83,16 @@ export function JobDetail({ job, profile, picked, onToggle, onClose }: Props) {
         <button className="btn ghost" onClick={onToggle}>
           {picked ? "✓ 已加入，点击移出" : "＋ 加入已选"}
         </button>
+        {onAddBoard && (
+          <button className="btn ghost" onClick={async () => setBoardMsg(await onAddBoard())}>
+            📌 加入投递看板
+          </button>
+        )}
+        {boardMsg && (
+          <span className="msg" role="status" style={{ margin: 0 }}>
+            {boardMsg} {boardMsg.startsWith("已加入") && <a href="/board">去看板 →</a>}
+          </span>
+        )}
       </div>
       <p className="msg" style={{ color: "var(--faint)" }}>
         岗位信息来自官网公开页面，可能滞后或有误，请以官网为准。

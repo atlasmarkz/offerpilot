@@ -1,5 +1,6 @@
 "use client";
 
+import type { PlanId } from "@offerpilot/shared";
 import { useCallback, useEffect, useState } from "react";
 
 export interface AccountUser {
@@ -9,7 +10,8 @@ export interface AccountUser {
 
 export interface UsageInfo {
   billing: boolean;
-  plan?: "free" | "pro";
+  plan?: PlanId;
+  limits?: { attachments: number; boardItems: number };
   quota?: number;
   used?: number;
   remaining?: number;
@@ -69,4 +71,16 @@ export function useSession() {
       return !!res?.ok;
     },
   };
+}
+
+/**
+ * 需要登录的页面用它：账号功能开着而当前没登录，就回到产品首页并弹出登录框。
+ * 本地/自托管没有账号体系（enabled 为 false）时不拦。
+ */
+export function useRequireLogin(session: ReturnType<typeof useSession>): boolean {
+  const blocked = session.checked && session.enabled && !session.user;
+  useEffect(() => {
+    if (blocked) window.location.replace("/?login=1");
+  }, [blocked]);
+  return session.checked && !blocked;
 }

@@ -156,3 +156,18 @@ export async function userRest(path: string, accessToken: string, init: RequestI
     throw new AuthError("连接数据库失败，请稍后重试", 502);
   }
 }
+
+/** 以登录用户的身份访问存储（私有桶），存储策略保证只能碰自己目录下的文件。 */
+export async function userStorage(path: string, accessToken: string, init: RequestInit = {}): Promise<Response> {
+  const cfg = need();
+  try {
+    return await fetch(`${cfg.origin}/storage/v1${path}`, {
+      ...init,
+      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${accessToken}`, ...init.headers },
+      cache: "no-store",
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch {
+    throw new AuthError("连接存储服务失败，请稍后重试", 502);
+  }
+}

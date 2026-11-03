@@ -6,7 +6,7 @@ import { ResumePreview } from "../../components/resume/ResumePreview";
 import { SuggestPanel } from "../../components/resume/SuggestPanel";
 import { TopBar } from "../../components/TopBar";
 import { useResumeSync } from "../../hooks/useResumeSync";
-import { useSession } from "../../hooks/useSession";
+import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { EMPTY_LLM, type LlmSettings } from "../../lib/profileForm";
 import type { ResumeDraft } from "../../lib/resume";
 import { draftToResume, isBlankResume, RESUME_KEY } from "../../lib/resumeLocal";
@@ -37,6 +37,7 @@ export default function ResumePage() {
   const [ownModel, setOwnModel] = useState(false);
 
   const session = useSession();
+  const allowed = useRequireLogin(session);
   const applyCloud = useCallback((r: ResumeData) => setResume(r), []);
   const sync = useResumeSync({ user: session.user, resume, ready, apply: applyCloud, onSignedOut: session.signedOut });
 
@@ -109,6 +110,8 @@ export default function ResumePage() {
   }
 
   const blank = isBlankResume(resume);
+
+  if (!allowed) return <TopBar session={session} active="resume" />;
 
   return (
     <>

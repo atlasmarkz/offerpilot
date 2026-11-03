@@ -1,15 +1,20 @@
 import { Profile } from "@offerpilot/shared";
 import type { FillOutcome } from "../../adapters/types";
 
-const result = document.getElementById("result")!;
-const who = document.getElementById("who")!;
-const fillBtn = document.getElementById("fill") as HTMLButtonElement;
-const demoBtn = document.getElementById("demo") as HTMLButtonElement;
-const demoNote = document.getElementById("demo-note")!;
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const fillBtn = $<HTMLButtonElement>("fill");
+const demoBtn = $<HTMLButtonElement>("demo");
+const resultBox = $("result");
+
+// 网站地址：商店版构建时由 WXT_WEB_ORIGIN 指定，本地开发默认 localhost
+const SITE = String(import.meta.env.WXT_WEB_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
+$<HTMLAnchorElement>("site").href = `${SITE}/app`;
+$<HTMLAnchorElement>("sync").href = `${SITE}/app`;
 
 /** 体验用的示例画像：明显是虚构的，不要拿去填真实的投递页。 */
+const DEMO_NAME = "张三（示例）";
 const DEMO_PROFILE: Profile = {
-  name: "张三（示例）",
+  name: DEMO_NAME,
   school: "示例大学",
   schoolTags: [],
   major: "计算机科学与技术",
@@ -27,47 +32,95 @@ async function loadProfile(): Promise<Profile | null> {
   return parsed.success ? parsed.data : null;
 }
 
-function describe(o: FillOutcome): string {
-  switch (o.status) {
-    case "filled":
-      return `已填写：${o.filledFields.join("、") || "（无）"}\n请检查后，自己点击提交。`;
-    case "needs_user":
-      return `已填写：${o.filledFields.join("、") || "（无）"}\n需要你处理：${o.reason}`;
-    case "failed":
-      return `没有填写：${o.error}`;
-  }
+function setText(id: string, text: string) {
+  $(id).textContent = text;
 }
 
 async function refresh() {
   const p = await loadProfile();
-  who.textContent = p ? `当前画像：${p.school} · ${p.major}` : "还没有画像：请先在 OfferPilot 网页端点“同步到浏览器扩展”。";
-  // 没有画像时才提供示例入口，避免覆盖用户真实同步过来的画像
-  demoBtn.hidden = !!p;
-  demoNote.hidden = !!p;
+  $("profile").hidden = !p;
+  $("empty").hidden = !!p;
+  if (!p) return;
+  const isDemo = p.name === DEMO_NAME;
+  setText("avatar", (p.school[0] ?? "?").toUpperCase());
+  const school = $("school");
+  school.textContent = p.school;
+  if (isDemo) {
+    const tag = document.createElement("span");
+    tag.className = "demo-tag";
+    tag.textContent = "示例";
+    school.append(tag);
+  }
+  setText("major", [p.major, `${p.graduationYear} 届`].filter(Boolean).join(" · "));
+}
+
+/** 把填表结果画成状态卡片：成功 / 需要你处理 / 没有填写。 */
+function render(o: FillOutcome) {
+  resultBox.hidden = false;
+  resultBox.className = `result ${o.status === "filled" ? "ok" : o.status === "needs_user" ? "warn" : "err"}`;
+  resultBox.replaceChildren();
+
+  const h = document.createElement("h2");
+  h.textContent = o.status === "filled" ? "✓ 已填写" : o.status === "needs_user" ? "! 已填写，还需要你处理" : "✕ 没有填写";
+  resultBox.append(h);
+
+  if (o.status !== "failed" && o.filledFields.length) {
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    for (const f of o.filledFields) {
+      const c = document.createElement("span");
+      c.className = "chip";
+      c.textContent = f;
+      chips.append(c);
+    }
+    resultBox.append(chips);
+  }
+  const note = document.createElement("p");
+  note.textContent =
+    o.status === "filled" ? "请检查填好的内容，然后自己点击提交。" : o.status === "needs_user" ? o.reason : o.error;
+  resultBox.append(note);
+  if (o.status === "needs_user") {
+    const more = document.createElement("p");
+    more.textContent = "处理完后，请检查内容并自己点击提交。";
+    resultBox.append(more);
+  }
 }
 
 void refresh();
 
+// 填表脚本跑完后会把结果发回来；弹窗开着时随时显示（点击流程和自动化测试都走这里）
+browser.runtime.onMessage.addListener((m: unknown) => {
+  const msg = m as { type?: string; outcome?: FillOutcome };
+  if (msg.type === "offerpilot:result" && msg.outcome) render(msg.outcome);
+});
+
 demoBtn.addEventListener("click", async () => {
   await browser.storage.local.set({ profile: DEMO_PROFILE });
-  result.textContent = "已载入示例画像（虚构的）。现在打开一个投递表单（例如 OfferPilot 网站的“示例表单”页），再点“填写当前页面”。";
   await refresh();
+  render({ status: "filled", filledFields: [] });
+  resultBox.className = "result ok";
+  resultBox.replaceChildren();
+  const h = document.createElement("h2");
+  h.textContent = "✓ 已载入示例画像（虚构的）";
+  const p = document.createElement("p");
+  p.textContent = "现在打开一个投递表单（例如 OfferPilot 网站的“示例表单”页），再点“填写当前页面”。";
+  resultBox.append(h, p);
 });
 
 fillBtn.addEventListener("click", async () => {
   const profile = await loadProfile();
   if (!profile) {
-    result.textContent = "还没有画像，请先在 OfferPilot 网页端同步，或点下面的“用示例画像试用”。";
+    render({ status: "failed", error: "还没有画像：请先在网站同步画像，或点“用示例画像试用”。" });
     return;
   }
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !/^https?:/i.test(tab.url ?? "")) {
-    result.textContent = "当前页面不支持填写（浏览器内置页面或本地文件）。请打开公司的投递页后再试。";
+    render({ status: "failed", error: "当前页面不支持填写（浏览器内置页面或本地文件）。请打开公司的投递页后再试。" });
     return;
   }
 
   fillBtn.disabled = true;
-  result.textContent = "填写中…";
+  fillBtn.textContent = "填写中…";
   // 填表脚本跑完后会发回结果；10 秒没有回报就提示失败
   const outcome = await new Promise<FillOutcome>((resolve) => {
     const timer = setTimeout(() => {
@@ -90,6 +143,7 @@ fillBtn.addEventListener("click", async () => {
         resolve({ status: "failed", error: "无法在当前页面运行（可能是受限页面）" });
       });
   });
-  result.textContent = describe(outcome);
+  render(outcome);
   fillBtn.disabled = false;
+  fillBtn.textContent = "填写当前页面";
 });

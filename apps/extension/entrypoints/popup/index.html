@@ -2,23 +2,114 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OfferPilot</title>
     <style>
-      body { width: 280px; padding: 12px; font: 14px system-ui, sans-serif; color: #1c2129; }
-      button { width: 100%; padding: 8px; cursor: pointer; }
-      button:disabled { cursor: not-allowed; opacity: 0.6; }
-      #demo { margin-top: 8px; background: #fff; border: 1px dashed #8792a6; border-radius: 6px; }
-      #demo-note { margin: 4px 0 0; color: #8792a6; font-size: 12px; }
-      #result { margin-top: 8px; color: #555; white-space: pre-wrap; }
+      :root {
+        --bg: #ffffff; --surface: #f5f7fc; --text: #1c2129; --muted: #6b7482; --faint: #98a1b1; --line: #e3e7ef;
+        --brand: #3b5bdb; --brand-strong: #2f49b8; --brand-soft: #e9eeff;
+        --ok: #178a4c; --ok-soft: #e4f6ec; --warn: #a8570a; --warn-soft: #fff1dc; --err: #c0392b; --err-soft: #fde8e6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171b25; --surface: #1f2431; --text: #e9edf5; --muted: #a3adc0; --faint: #7a8599; --line: #2c3344;
+          --brand: #7d98ff; --brand-strong: #a3b6ff; --brand-soft: #232d54;
+          --ok: #5fd593; --ok-soft: #14312a; --warn: #f2b765; --warn-soft: #3a2c14; --err: #ff8a7a; --err-soft: #3d1f1c;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { width: 340px; margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; }
       [hidden] { display: none !important; }
+
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+      header img { width: 34px; height: 34px; border-radius: 9px; }
+      header b { display: block; font-size: 16px; line-height: 1.2; }
+      header span { color: var(--muted); font-size: 12px; }
+      header a { margin-left: auto; font-size: 12px; color: var(--brand); text-decoration: none; }
+      header a:hover { text-decoration: underline; }
+
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+      .label { color: var(--faint); font-size: 12px; margin-bottom: 4px; }
+      .who { display: flex; align-items: center; gap: 10px; }
+      .avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+        background: var(--brand-soft); color: var(--brand-strong); font-weight: 700; }
+      .who b { display: block; line-height: 1.3; overflow-wrap: anywhere; }
+      .who small { color: var(--muted); font-size: 12px; }
+      .demo-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 5px; background: var(--warn-soft);
+        color: var(--warn); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+
+      .empty { text-align: center; padding: 4px 0 2px; }
+      .empty .big { font-size: 26px; line-height: 1; margin-bottom: 6px; }
+      .empty p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+
+      button { font: inherit; cursor: pointer; border-radius: 10px; transition: background .15s, border-color .15s, transform .05s; }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { cursor: not-allowed; opacity: .6; }
+      .primary { width: 100%; margin-top: 12px; padding: 11px 14px; border: 0; color: #fff; font-weight: 650; font-size: 15px;
+        background: linear-gradient(135deg, #4f6bf0, #3b5bdb 55%, #6d4bd0); box-shadow: 0 4px 14px rgba(59, 91, 219, .35); }
+      .primary:hover:not(:disabled) { filter: brightness(1.06); }
+      .ghost { width: 100%; padding: 8px 12px; border: 1px dashed var(--faint); background: transparent; color: var(--text); font-size: 13px; }
+      .ghost:hover { border-color: var(--brand); color: var(--brand); }
+      .link { display: block; width: 100%; padding: 8px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--brand);
+        color: var(--brand); text-align: center; text-decoration: none; font-size: 13px; font-weight: 600; }
+      .link:hover { background: var(--brand-soft); }
+
+      .result { margin-top: 12px; border-radius: 12px; padding: 12px 14px; border: 1px solid transparent; }
+      .result.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+      .result.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+      .result.err { background: var(--err-soft); border-color: color-mix(in srgb, var(--err) 30%, transparent); }
+      .result h2 { margin: 0 0 6px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+      .result.ok h2 { color: var(--ok); } .result.warn h2 { color: var(--warn); } .result.err h2 { color: var(--err); }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+      .chip { padding: 1px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }
+      .result p { margin: 4px 0 0; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+
+      .steps { margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
+      .steps b { color: var(--brand); margin-right: 4px; }
+      footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; text-align: center; }
     </style>
   </head>
   <body>
-    <div id="who" style="margin-bottom:8px;color:#555"></div>
-    <button id="fill">填写当前页面</button>
-    <button id="demo" hidden>用示例画像试用</button>
-    <p id="demo-note" hidden>没有账号也能体验：载入一份虚构的示例画像，仅用于试用。</p>
-    <div id="result"></div>
+    <header>
+      <img src="/icon/48.png" alt="" />
+      <div>
+        <b>OfferPilot</b>
+        <span>校招填表助手</span>
+      </div>
+      <a id="site" href="#" target="_blank" rel="noreferrer">打开网站 ↗</a>
+    </header>
+
+    <section class="card" aria-label="当前画像">
+      <div id="profile" hidden>
+        <div class="label">当前画像</div>
+        <div class="who">
+          <div class="avatar" id="avatar"></div>
+          <div>
+            <b id="school"></b>
+            <small id="major"></small>
+          </div>
+        </div>
+      </div>
+      <div id="empty" class="empty" hidden>
+        <div class="big" aria-hidden="true">📋</div>
+        <p>还没有画像。先去网站同步，或者用示例画像体验一下。</p>
+        <a id="sync" class="link" href="#" target="_blank" rel="noreferrer">去 OfferPilot 同步我的画像</a>
+        <button id="demo" class="ghost">用示例画像试用（虚构数据）</button>
+      </div>
+    </section>
+
+    <button id="fill" class="primary">填写当前页面</button>
+
+    <section id="result" class="result" role="status" aria-live="polite" hidden></section>
+
+    <ul class="steps" id="steps">
+      <li><b>1</b>打开公司的投递页</li>
+      <li><b>2</b>点上面的“填写当前页面”</li>
+      <li><b>3</b>检查内容，自己点提交</li>
+    </ul>
+
+    <footer>只填不提交 · 验证码由你自己完成</footer>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

@@ -146,12 +146,24 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 - 发验证码有两道限流：本站每个 IP 每天 `AUTH_CODE_PER_IP`（默认 20）次、全站 `AUTH_CODE_DAILY`（默认 500）次；Supabase 对同一邮箱还有每分钟一次的限制。被人刷接口时，建议再接入 Supabase 的验证码人机校验（Authentication → Attack Protection，支持 Cloudflare Turnstile / hCaptcha）。
 - 手机号、微信登录需要短信或微信开放平台的企业资质，条件具备后再作为新的登录方式接入，账号体系不用改。
 
-## 六、上线前自检
+## 六、托管版计费（额度与订阅）
+
+详见 [docs/PRODUCT.md](docs/PRODUCT.md)。上线计费版要做的事：
+
+1. SQL Editor 运行 `supabase/migrations/0004_billing_resume.sql`（可重复运行）。
+2. Vercel 环境变量里新增：`BILLING_ENABLED=1`，以及 **`SUPABASE_SERVICE_KEY`**。
+   这是整个部署里**唯一**需要把 `service_role`/secret 密钥放到服务端的地方——扣额度和发放额度必须由服务端特权调用，否则用户能自己改余额。它只存在服务端环境变量里，页面代码拿不到；务必设为 Vercel 的“Sensitive”变量，且不要给 Preview 环境。
+3. `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 填你的 MiniMax。开启计费后，这套模型只对登录且有额度的用户开放；用户自带模型不受影响。
+4. 支付接入前，用管理员命令手动发放额度：`npm run billing -w @offerpilot/crawler -- grant 邮箱 20`。
+5. 自托管（给用户自己部署）时**不要**设 `BILLING_ENABLED`，所有功能不计费，用户在页面“模型设置”或环境变量里填自己的模型。
+
+## 七、上线前自检
 
 - [ ] `.env` 没有被提交（`git status` 里看不到它）。
 - [ ] `service_role` 密钥只出现在本机 `.env` 和 GitHub Secrets 里。
 - [ ] 线上页面能看到已审核的岗位，看不到待审核的。
 - [ ] 已运行 `0003_user_data.sql`，邮件模板含 `{{ .Token }}`，并配置了自己的 SMTP；能用真实邮箱完成登录。
+- [ ] 开启计费时：`0004` 已运行，`SUPABASE_SERVICE_KEY` 仅设在服务端，未登录用站点模型会被拒绝，额度不足返回 402。
 - [ ] 隐私说明页（`/privacy`）打开正常，内容和你实际使用的大模型服务相符。
 - [ ] 大模型服务商处已设置月度额度上限。
 - [ ] 岗位只展示摘要并跳转官网投递；对外推广前，再核对各公司网站的使用条款与 `robots.txt`。

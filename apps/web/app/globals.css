@@ -290,3 +290,57 @@ details.fold .body { margin-top: 10px; display: flex; flex-direction: column; ga
 .conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 16px; background: var(--warn-soft);
   border-color: transparent; color: var(--warn); }
 .conflict-actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* ---------- 顶栏导航与额度 ---------- */
+.nav { display: flex; gap: 4px; margin-left: 8px; }
+.nav a { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 550; }
+.nav a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
+.nav a[aria-current="page"] { background: var(--brand-soft); color: var(--brand-strong); }
+.acct-usage { padding: 8px 10px; font-size: 12.5px; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; line-height: 1.7; }
+.acct-usage b { color: var(--text); }
+
+/* ---------- 简历工作台 ---------- */
+.resume-app { display: flex; flex-direction: column; gap: 16px; }
+.toolbar { display: flex; flex-direction: column; gap: 12px; }
+.toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.btn.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.resume-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.resume-preview-col { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
+@media (max-width: 1100px) { .resume-grid { grid-template-columns: 1fr; } .resume-preview-col { position: static; max-height: none; } }
+.editor .panel + .panel, .resume-grid .no-print > .panel + .editor { margin-top: 16px; }
+.editor { display: flex; flex-direction: column; gap: 16px; }
+.item-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: var(--surface-2); }
+textarea.input { resize: vertical; font-family: inherit; }
+
+.sug-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.sug { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); font-size: 13.5px; }
+.sug-high { border-left: 3px solid var(--warn); }
+.sug-head { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.sug-problem { color: var(--muted); margin-bottom: 4px; }
+.sug-rewrite { margin-top: 6px; padding: 8px 10px; background: var(--surface); border-radius: 8px; border: 1px dashed var(--line); }
+.sug-rewrite .lbl { display: block; margin-bottom: 2px; }
+
+/* A4 简历纸面：屏幕上是卡片，打印时就是整页 */
+.resume-paper { background: #fff; color: #1a1a1a; width: 100%; max-width: 794px; margin: 0 auto; padding: 40px 44px; border-radius: 6px;
+  box-shadow: var(--shadow); font: 13px/1.65 "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+.resume-paper h1 { font-size: 26px; margin: 0; letter-spacing: 1px; }
+.resume-paper h2 { font-size: 14px; margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #1a1a1a; letter-spacing: 1px; }
+.rp-head { margin-bottom: 6px; }
+.rp-meta { color: #444; margin-top: 4px; }
+.rp-item { margin-bottom: 8px; }
+.rp-row { display: flex; justify-content: space-between; gap: 12px; }
+.rp-row span { color: #444; white-space: nowrap; }
+.rp-sub { color: #444; }
+.resume-paper p { margin: 0; }
+.resume-paper ul { margin: 3px 0 0; padding-left: 18px; }
+.resume-paper li { margin-bottom: 1px; }
+
+@page { size: A4; margin: 12mm; }
+@media print {
+  html, body { background: #fff !important; }
+  .no-print, .topbar { display: none !important; }
+  .app { padding: 0 !important; max-width: none !important; }
+  .resume-grid { display: block; }
+  .resume-preview-col { position: static; max-height: none; overflow: visible; }
+  .resume-paper { box-shadow: none; border-radius: 0; padding: 0; max-width: none; width: auto; }
+}

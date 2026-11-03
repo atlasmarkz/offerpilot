@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isBlankForm, sanitizeForm, type Form } from "../lib/profileForm";
+import type { AccountUser } from "./useSession";
 
-export interface AccountUser {
-  id: string;
-  email: string;
-}
 export type SyncStatus = "idle" | "saving" | "saved" | "error";
 interface Cloud {
   profile: Form;
@@ -17,70 +14,69 @@ const SAVE_DELAY = 1500;
 const same = (a: Cloud, b: Cloud) => JSON.stringify(a) === JSON.stringify(b);
 
 interface Args {
+  user: AccountUser | null;
   form: Form;
   selected: string[];
   /** 本地数据读完之后才开始同步，避免拿空数据覆盖云端 */
   ready: boolean;
   apply: (c: Cloud) => void;
+  /** 云端返回 401（登录失效）时通知外层 */
+  onSignedOut: () => void;
 }
 
 /**
- * 登录状态 + 云端同步。
+ * 画像和已选岗位的云端同步（登录状态由 useSession 管）。
  * 登录后：云端没数据就把本机的传上去；云端有数据而本机是空的就直接用云端；
  * 两边都有且不一样时交给用户选，绝不静默覆盖。之后每次改动延迟 1.5 秒自动保存。
  */
-export function useCloudSync({ form, selected, ready, apply }: Args) {
-  const [enabled, setEnabled] = useState(false);
-  const [user, setUser] = useState<AccountUser | null>(null);
-  const [checked, setChecked] = useState(false);
+export function useCloudSync({ user, form, selected, ready, apply, onSignedOut }: Args) {
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [conflict, setConflict] = useState<Cloud>();
   const [active, setActive] = useState(false);
   const latest = useRef<Cloud>({ profile: form, selected });
   latest.current = { profile: form, selected };
 
-  const put = useCallback(async (c: Cloud): Promise<boolean> => {
-    setStatus("saving");
-    try {
-      const res = await fetch("/api/me/data", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: c.profile, selected: c.selected }),
-      });
-      if (res.status === 401) {
-        setUser(null);
-        setActive(false);
-        setStatus("idle");
+  const put = useCallback(
+    async (c: Cloud): Promise<boolean> => {
+      setStatus("saving");
+      try {
+        const res = await fetch("/api/me/data", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile: c.profile, selected: c.selected }),
+        });
+        if (res.status === 401) {
+          onSignedOut();
+          setStatus("idle");
+          return false;
+        }
+        setStatus(res.ok ? "saved" : "error");
+        return res.ok;
+      } catch {
+        setStatus("error");
         return false;
       }
-      setStatus(res.ok ? "saved" : "error");
-      return res.ok;
-    } catch {
-      setStatus("error");
-      return false;
-    }
-  }, []);
+    },
+    [onSignedOut],
+  );
 
-  // 1) 启动时问一下有没有登录
+  // 退出登录后重置
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d: { enabled: boolean; user: AccountUser | null }) => {
-        setEnabled(d.enabled);
-        setUser(d.user);
-      })
-      .catch(() => {})
-      .finally(() => setChecked(true));
-  }, []);
+    if (!user) {
+      setActive(false);
+      setConflict(undefined);
+      setStatus("idle");
+    }
+  }, [user]);
 
-  // 2) 本地数据就绪且已登录：对账
+  // 本地数据就绪且已登录：对账
   useEffect(() => {
     if (!ready || !user || active || conflict) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/me/data");
-        if (res.status === 401) return setUser(null);
+        if (res.status === 401) return onSignedOut();
         if (!res.ok) return setStatus("error");
         const { data } = (await res.json()) as { data: { profile: unknown; selected: unknown } | null };
         if (cancelled) return;
@@ -107,9 +103,9 @@ export function useCloudSync({ form, selected, ready, apply }: Args) {
     return () => {
       cancelled = true;
     };
-  }, [ready, user, active, conflict, apply, put]);
+  }, [ready, user, active, conflict, apply, put, onSignedOut]);
 
-  // 3) 已对账：改动后延迟保存
+  // 已对账：改动后延迟保存
   useEffect(() => {
     if (!active) return;
     const t = setTimeout(() => void put({ profile: form, selected }), SAVE_DELAY);
@@ -127,30 +123,5 @@ export function useCloudSync({ form, selected, ready, apply }: Args) {
     [conflict, apply, put],
   );
 
-  const post = (url: string) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-  const reset = () => {
-    setUser(null);
-    setActive(false);
-    setConflict(undefined);
-    setStatus("idle");
-  };
-
-  return {
-    enabled,
-    checked,
-    user,
-    status,
-    conflict: !!conflict,
-    onLoggedIn: (u: AccountUser) => setUser(u),
-    resolveConflict,
-    logout: async () => {
-      await post("/api/auth/logout").catch(() => {});
-      reset();
-    },
-    deleteAccount: async (): Promise<boolean> => {
-      const res = await post("/api/me/delete").catch(() => undefined);
-      if (res?.ok) reset();
-      return !!res?.ok;
-    },
-  };
+  return { status, conflict: !!conflict, resolveConflict };
 }

@@ -2,18 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Job, JobKind } from "@offerpilot/shared";
-import { AccountMenu } from "../components/AccountMenu";
 import { FilterBar } from "../components/FilterBar";
-import { LoginDialog } from "../components/LoginDialog";
 import { JobDetail, SelectedPanel } from "../components/JobDetail";
 import { JobList } from "../components/JobList";
 import { ProfileCard, type ExtState } from "../components/ProfileCard";
 import { ResumePanel, type ResumePreview } from "../components/ResumePanel";
 import { applyFilter, EMPTY_FILTER, facets, type ListFilter } from "../lib/filter";
+import { TopBar } from "../components/TopBar";
 import { useCloudSync } from "../hooks/useCloudSync";
+import { useSession } from "../hooks/useSession";
 import { matchJobs } from "../lib/match";
 import { EMPTY_FORM, EMPTY_LLM, toProfile, type Form, type LlmSettings } from "../lib/profileForm";
 import type { ResumeDraft } from "../lib/resume";
+import { draftToResume, RESUME_KEY } from "../lib/resumeLocal";
 import { flip, load, remove, save } from "../lib/storage";
 
 const PROFILE_KEY = "offerpilot.profile.v1";
@@ -36,7 +37,6 @@ export default function Home() {
   const [filter, setFilter] = useState<ListFilter>(EMPTY_FILTER);
   const [includeUnreviewed, setIncludeUnreviewed] = useState(true);
   const [ext, setExt] = useState<ExtState>("unknown");
-  const [showLogin, setShowLogin] = useState(false);
 
   const [llm, setLlm] = useState<LlmSettings>(EMPTY_LLM);
   const [consent, setConsent] = useState(false);
@@ -110,7 +110,15 @@ export default function Home() {
     setForm(c.profile);
     setSelected(c.selected);
   }, []);
-  const account = useCloudSync({ form, selected, ready, apply: applyCloud });
+  const session = useSession();
+  const sync = useCloudSync({
+    user: session.user,
+    form,
+    selected,
+    ready,
+    apply: applyCloud,
+    onSignedOut: session.signedOut,
+  });
 
   // ---- 匹配与筛选 ----
   const profile = useMemo(() => toProfile(form), [form]);
@@ -164,6 +172,7 @@ export default function Home() {
       if (isPdf) previewUrl.current = URL.createObjectURL(file);
       setPreview({ name: file.name, kind: isPdf ? "pdf" : "text", url: previewUrl.current, text: data.text });
 
+      save(RESUME_KEY, draftToResume(d));
       setForm((f) => ({
         ...f,
         school: d.school ?? f.school,
@@ -203,50 +212,24 @@ export default function Home() {
 
   return (
     <>
-      <header className="topbar">
-        <a className="logo" href="/" aria-label="OfferPilot 首页">
-          <picture>
-            <source media="(prefers-color-scheme: dark)" srcSet="/logo-dark.png" />
-            <img src="/logo.png" alt="OfferPilot" height={32} />
-          </picture>
-        </a>
-        <span className="spacer" />
+      <TopBar session={session} active="jobs" status={sync.status}>
         {loaded && !error && (
           <span className="stat">
             <b>{result.matches.length}</b> 个可投 · 共 {jobs.length} 个岗位
           </span>
         )}
-        {account.enabled && (
-          <AccountMenu
-            user={account.user}
-            status={account.status}
-            onLogin={() => setShowLogin(true)}
-            onLogout={() => void account.logout()}
-            onDelete={account.deleteAccount}
-          />
-        )}
-      </header>
-
-      {showLogin && (
-        <LoginDialog
-          onClose={() => setShowLogin(false)}
-          onSuccess={(u) => {
-            account.onLoggedIn(u);
-            setShowLogin(false);
-          }}
-        />
-      )}
+      </TopBar>
 
       <main className="app">
-        {account.conflict && (
+        {sync.conflict && (
           <div className="panel conflict" role="alertdialog" aria-label="选择以哪份数据为准">
             <b>云端和这台设备上都有数据，而且不一样。</b>
             <span>你想以哪份为准？选好之前不会覆盖任何一边。</span>
             <span className="conflict-actions">
-              <button className="btn sm" onClick={() => void account.resolveConflict("cloud")}>
+              <button className="btn sm" onClick={() => void sync.resolveConflict("cloud")}>
                 用云端的（覆盖本机）
               </button>
-              <button className="btn ghost sm" onClick={() => void account.resolveConflict("local")}>
+              <button className="btn ghost sm" onClick={() => void sync.resolveConflict("local")}>
                 用本机的（覆盖云端）
               </button>
             </span>
@@ -275,7 +258,7 @@ export default function Home() {
               ext={ext}
               canSync={profile.success}
               onSync={syncToExtension}
-              cloud={!!account.user}
+              cloud={!!session.user}
             />
             <FilterBar
               filter={filter}

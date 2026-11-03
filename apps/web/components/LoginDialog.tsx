@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AccountUser } from "../hooks/useCloudSync";
+import type { AccountUser } from "../hooks/useSession";
 
 interface Props {
   onClose: () => void;

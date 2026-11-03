@@ -11,7 +11,8 @@
     "probe": "tsx src/probe.ts",
     "discover": "tsx src/discover.ts",
     "sync": "tsx src/sync.ts",
-    "verify": "tsx src/verifyLinks.ts"
+    "verify": "tsx src/verifyLinks.ts",
+    "billing": "tsx src/billingAdmin.ts"
   },
   "dependencies": {
     "@offerpilot/shared": "*",

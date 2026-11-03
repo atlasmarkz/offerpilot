@@ -1,4 +1,5 @@
 import { ExperienceAtom } from "@offerpilot/shared";
+import { Education } from "./resumeData";
 
 /** 发给大模型的简历文字上限，超出部分截断。 */
 export const MAX_RESUME_CHARS = 12000;
@@ -11,6 +12,9 @@ export const RESUME_SYSTEM_PROMPT = `你是简历信息抽取器。从给定的�
 - graduationYear: 预计毕业年份（数字）
 - cities: 数组，仅当简历里明确写了意向城市时填
 - targetRoles: 数组，仅当简历里明确写了求职意向岗位时填
+- education: 数组，每项 { school, major, degree（本科/硕士/博士）, start, end（YYYY-MM）, gpa（原文写了才填，如 "3.8/4.0" 或 "专业前5%"）, highlights: 字符串数组（在校成绩、荣誉等要点，保留原文） }
+- skills: 字符串数组，简历里列出的技能/工具/语言
+- summary: 简历里有“自我评价/个人总结”时，保留其要点（不超过 200 字），没有就省略
 - experiences: 数组，每项 { kind: "project"|"internship"|"research"|"award"|"campus", title, org（可省略）, start, end（YYYY-MM，可省略）, bullets: 字符串数组（保留原文要点，不要改写夸大）, skills: 字符串数组 }
 严格依据原文，不要猜测或编造；原文没有的信息一律省略。不要输出姓名、电话、邮箱、身份证号、住址等个人标识信息。`;
 
@@ -37,7 +41,13 @@ const strList = (v: unknown, max = 12): string[] =>
 
 const SCHOOL_TAGS = new Set(["985", "211", "双一流"]);
 
-export interface ResumeDraft {
+export interface ResumeDraftExtra {
+  education: Education[];
+  skills: string[];
+  summary: string;
+}
+
+export interface ResumeDraft extends ResumeDraftExtra {
   school?: string;
   schoolTags: string[];
   major?: string;
@@ -71,5 +81,11 @@ export function normalizeDraft(raw: unknown): ResumeDraft {
     cities: strList(o.cities).map((c) => c.replace(/市$/, "")),
     targetRoles: strList(o.targetRoles),
     experiences: experiences.slice(0, 20),
+    education: (Array.isArray(o.education) ? o.education : []).slice(0, 6).flatMap((e) => {
+      const p = Education.safeParse(e);
+      return p.success ? [p.data] : [];
+    }),
+    skills: strList(o.skills, 40),
+    summary: typeof o.summary === "string" ? o.summary.trim().slice(0, 500) : "",
   };
 }

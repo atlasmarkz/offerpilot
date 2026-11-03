@@ -1,4 +1,4 @@
-import { Profile } from "@offerpilot/shared";
+import { Profile, normalizeResume } from "@offerpilot/shared";
 import { EXTRA_FIELDS } from "../../adapters/formFill";
 import type { FillOutcome } from "../../adapters/types";
 
@@ -53,6 +53,14 @@ async function refresh() {
     school.append(tag);
   }
   setText("major", [p.major, `${p.graduationYear} 届`].filter(Boolean).join(" · "));
+  const { resume } = await browser.storage.local.get("resume");
+  const r = resume ? normalizeResume(resume) : undefined;
+  setText(
+    "resume",
+    r && (r.education.length || r.experiences.length || r.contact.phone)
+      ? `简历已同步：教育 ${r.education.length} 段 · 经历 ${r.experiences.length} 段${r.contact.phone && r.contact.email ? " · 含联系方式" : ""}`
+      : "还没同步在线简历：到网站的“简历工作台”填写后同步",
+  );
 }
 
 /** 把填表结果画成状态卡片：成功 / 需要你处理 / 没有填写。 */
@@ -138,7 +146,7 @@ void refresh();
 
 // 网页端同步画像后，已经打开的弹窗也立刻刷新，不用关了重开
 browser.storage.onChanged.addListener((changes) => {
-  if (changes.profile) void refresh();
+  if (changes.profile || changes.resume) void refresh();
 });
 
 // 填表脚本跑完后会把结果发回来；弹窗开着时随时显示（点击流程和自动化测试都走这里）

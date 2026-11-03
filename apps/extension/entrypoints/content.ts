@@ -1,5 +1,6 @@
-import { Profile } from "@offerpilot/shared";
+import { Profile, normalizeResume } from "@offerpilot/shared";
 import { findAdapter } from "../adapters";
+import { resumeExtras } from "../adapters/resumeFacts";
 import type { FillOutcome } from "../adapters/types";
 
 /**
@@ -10,10 +11,12 @@ export default defineContentScript({
   registration: "runtime",
   matches: ["*://*/*"],
   async main() {
-    const { profile, extras } = await browser.storage.local.get(["profile", "extras"]);
+    const { profile, extras, resume } = await browser.storage.local.get(["profile", "extras", "resume"]);
     const parsed = Profile.safeParse(profile);
-    const extraValues: Record<string, string> =
+    const typed: Record<string, string> =
       extras && typeof extras === "object" ? Object.fromEntries(Object.entries(extras).filter(([, v]) => typeof v === "string")) : {};
+    // 在线简历里的联系方式打底，弹窗里手动补充的覆盖它
+    const extraValues = { ...resumeExtras(resume ? normalizeResume(resume) : undefined), ...typed };
 
     let outcome: FillOutcome;
     if (!parsed.success) {

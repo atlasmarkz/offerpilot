@@ -9,6 +9,7 @@ import { useResumeSync } from "../../hooks/useResumeSync";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { EMPTY_LLM, type LlmSettings } from "../../lib/profileForm";
 import type { ResumeDraft } from "../../lib/resume";
+import { postResumeToExtension } from "../../lib/extensionSync";
 import { draftToResume, isBlankResume, RESUME_KEY } from "../../lib/resumeLocal";
 import { emptyResume, normalizeResume, type ResumeData } from "../../lib/resumeData";
 import { load, save } from "../../lib/storage";
@@ -47,7 +48,11 @@ export default function ResumePage() {
     setReady(true);
   }, []);
   useEffect(() => {
-    if (ready) save(RESUME_KEY, resume);
+    if (ready) {
+      save(RESUME_KEY, resume);
+      // 已装扩展时顺带更新它手里的简历，不用再回岗位页点同步
+      if (!isBlankResume(resume)) postResumeToExtension(resume);
+    }
   }, [resume, ready]);
 
   const billing = session.usage.billing;

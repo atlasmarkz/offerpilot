@@ -16,6 +16,8 @@ export interface SiteTemplate {
   select?: { opener: string; option: string };
   /** 已适配可重复区块（教育、实习、项目等）的分区块填写，见 sections.ts */
   sections?: boolean;
+  /** 区块布局：feishu（默认）或 netease（Ant Design 3 + 编号标题 + .u-wraps 行） */
+  layout?: "feishu" | "netease";
 }
 
 const ANY_OPTION = "[role=option]";
@@ -80,6 +82,17 @@ export const TEMPLATES: SiteTemplate[] = [
     fingerprint: ["[class*=arco-form]", "[class*=arco-select]"],
     itemSelector: "[class*=arco-form-item]",
     select: { opener: "[class*=arco-select-view]", option: `[class*=arco-select-option], ${ANY_OPTION}` },
+  },
+  {
+    id: "netease",
+    name: "网易校招",
+    // 实测（campus.163.com/app/personal/resume，2026-11）：Ant Design 3，区块标题带编号，可重复行是 .ant-row.u-wraps
+    hosts: [/(^|\.)campus\.163\.com/, /(^|\.)hr\.163\.com/, /(^|\.)campus\.game\.163\.com/, /(^|\.)game\.163\.com\/.*(campus|job)/],
+    fingerprint: [".u-wraps", ".u-date-hitherto", "[class*=hitherto]"],
+    itemSelector: ".ant-form-item",
+    sections: true,
+    layout: "netease",
+    select: { opener: ".ant-select-selection, .ant-select", option: ".ant-select-dropdown-menu-item, [role=option]" },
   },
   {
     id: "antd",

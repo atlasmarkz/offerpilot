@@ -1,6 +1,7 @@
 import type { ResumeData } from "@offerpilot/shared";
 import { pickCustomSelect, visible } from "./formFill";
 import type { SiteTemplate } from "./templates";
+import { layoutOf } from "./sectionLayouts";
 import { setInputValue } from "./types";
 
 /**
@@ -29,7 +30,7 @@ export interface SectionResult {
   note?: string;
 }
 
-type Control = "text" | "select" | "search" | "range" | "month";
+type Control = "text" | "select" | "search" | "range" | "month" | "date";
 
 interface FieldSpec {
   /** 页面上的标签（去掉星号和空白后）匹配这个 */
@@ -44,6 +45,8 @@ interface FieldSpec {
   range?: [string, string];
   /** 简历里没有这一项，需要用户自己选 */
   manualReason?: string;
+  /** 同一个标签在一行里出现多次时取第几个（0 开始），如网易的“工作时间”是开始、结束两个表单项 */
+  nth?: number;
 }
 
 interface RowSpec {
@@ -90,6 +93,8 @@ const SECTIONS: SectionSpec[] = [
             { label: /^(学历|学位)$/, name: "学历", control: "select", value: e.degree, words: DEGREE_WORDS.find(([re]) => re.test(e.degree))?.[1] ?? [e.degree] },
             { label: /^(专业|所学专业)$/, name: "专业", control: "text", value: e.major },
             { label: /^(起止时间|就读时间|在校时间)$/, name: "起止时间", control: "range", range: range(e.start, e.end) },
+            { label: /^入校时间$/, name: "入校时间", control: "date", value: normMonth(e.start) },
+            { label: /^(获得学位证时间|毕业时间)$/, name: "毕业时间", control: "date", value: normMonth(e.end) },
             { label: /^学历类型$/, name: "学历类型", control: "select", manualReason: "简历里没有这一项" },
             ...(e.gpa ? [{ label: /^(GPA|成绩|绩点|排名)/i, name: "成绩", control: "text" as const, value: e.gpa }] : []),
           ],
@@ -114,7 +119,10 @@ const SECTIONS: SectionSpec[] = [
               { label: /^(公司名称|单位名称|机构名称|实习单位)$/, name: "公司名称", control: "text", value: x.org },
               { label: /^(职位名称|岗位名称|职位|岗位|担任角色|角色)$/, name: "职位名称", control: "text", value: x.title },
               { label: /^(起止时间|实习时间|时间)$/, name: "起止时间", control: "range", range: range(x.start, x.end) },
-              { label: /^(描述|工作内容|工作描述|经历描述)$/, name: "描述", control: "text", value: bullets(x.bullets) },
+              { label: /^(工作时间|实习时间)$/, name: "开始时间", control: "date", value: normMonth(x.start), nth: 0 },
+              { label: /^(工作时间|实习时间)$/, name: "结束时间", control: "date", value: normMonth(x.end), nth: 1 },
+              { label: /^(所在部门)$/, name: "所在部门", control: "text", manualReason: "简历里没有这一项" },
+              { label: /^(描述|工作内容|工作描述|经历描述|工作职责)$/, name: "描述", control: "text", value: bullets(x.bullets) },
             ],
           })),
     }),
@@ -131,6 +139,8 @@ const SECTIONS: SectionSpec[] = [
             { label: /^(项目名称|项目)$/, name: "项目名称", control: "text", value: x.title },
             ...(x.org ? [{ label: /^(项目角色|角色|担任角色)$/, name: "项目角色", control: "text" as const, value: x.org }] : []),
             { label: /^(起止时间|项目时间|时间)$/, name: "起止时间", control: "range", range: range(x.start, x.end) },
+            { label: /^项目时间$/, name: "开始时间", control: "date", value: normMonth(x.start), nth: 0 },
+            { label: /^项目时间$/, name: "结束时间", control: "date", value: normMonth(x.end), nth: 1 },
             { label: /^(描述|项目描述|项目内容)$/, name: "描述", control: "text", value: bullets(x.bullets) },
           ],
         })),
@@ -168,18 +178,8 @@ async function until<T>(fn: () => T | undefined | false, ms = 2000, step = 100):
 const fire = (el: Element, type: string) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
 const press = (el: Element, key: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 
-/** 区块容器：标题文字匹配的 .applyFormModuleWrapper-windows */
-function findSection(doc: Document, title: RegExp): HTMLElement | undefined {
-  for (const w of doc.querySelectorAll<HTMLElement>("[class*=applyFormModuleWrapper-windows]")) {
-    const t = w.querySelector("[class*=applyFormModuleWrapper-title]")?.textContent ?? "";
-    if (title.test(t.trim())) return w;
-  }
-  return undefined;
-}
-
-const cards = (sec: HTMLElement) => [...sec.querySelectorAll<HTMLElement>("[class*=apply-form-array-card__]")];
 const itemsOf = (row: HTMLElement, tpl: SiteTemplate) => [...row.querySelectorAll<HTMLElement>(tpl.itemSelector ?? ".ud-formily-item")];
-const labelText = (item: HTMLElement) => clean(item.querySelector("[class*=formily-item-label], label")?.textContent);
+const labelText = (item: HTMLElement, tpl: SiteTemplate) => clean(layoutOf(tpl).label(item));
 
 /** 这个表单项的控件：能写的输入框（排除只读外壳以外的文件、单选等） */
 function controlsOf(item: HTMLElement): HTMLInputElement[] {
@@ -190,7 +190,7 @@ function controlsOf(item: HTMLElement): HTMLInputElement[] {
 
 /** 页面上显示的值：下拉读选中的文字，其余读 value。 */
 function readItem(item: HTMLElement): string {
-  const sel = item.querySelector("[class*=select__selector__content], [class*=select__selector-item], [class*=select-selection-item]");
+  const sel = item.querySelector("[class*=select__selector__content], [class*=select__selector-item], [class*=select-selection-item], .ant-select-selection-selected-value");
   const selText = clean(sel?.textContent);
   const vals = controlsOf(item).map((i) => i.value.trim()).filter(Boolean);
   return vals.length ? vals.join("~") : selText;
@@ -199,12 +199,13 @@ function readItem(item: HTMLElement): string {
 const rowHasContent = (row: HTMLElement, tpl: SiteTemplate) => itemsOf(row, tpl).some((it) => readItem(it) !== "");
 
 /** 点“添加”，等新行出现，返回新行 */
-async function addRow(sec: HTMLElement): Promise<HTMLElement | undefined> {
-  const before = cards(sec).length;
-  const btn = [...sec.querySelectorAll<HTMLElement>("button, [role=button]")].find((b) => clean(b.textContent) === "添加");
+async function addRow(sec: HTMLElement, tpl: SiteTemplate): Promise<HTMLElement | undefined> {
+  const layout = layoutOf(tpl);
+  const before = layout.cards(sec).length;
+  const btn = layout.addButton(sec);
   if (!btn) return undefined;
   btn.click();
-  return until(() => (cards(sec).length > before ? cards(sec).at(-1) : undefined), 2500);
+  return until(() => (layout.cards(sec).length > before ? layout.cards(sec).at(-1) : undefined), 2500);
 }
 
 async function writeText(input: HTMLInputElement, v: string): Promise<void> {
@@ -245,6 +246,32 @@ async function writeMonth(input: HTMLInputElement, v: string): Promise<void> {
   input.blur();
 }
 
+const isSearchInput = (i: HTMLInputElement) => i.matches("[class*=select-search__field], [class*=select__selector__search__input]");
+
+/**
+ * Ant Design 3 的日期选择：输入框是只读的，点开后弹层顶部有一个可输入的框，输入后回车选中。
+ * 月份、日期两种格式都试一遍，以读回输入框里的值为准。
+ */
+async function pickAntDate(item: HTMLElement, ym: string): Promise<{ ok: boolean; actual: string }> {
+  const doc = item.ownerDocument;
+  const picker = item.querySelector<HTMLInputElement>(".ant-calendar-picker-input, [class*=picker] input");
+  if (!picker) return { ok: false, actual: "" };
+  const read = () => picker.value.trim();
+  for (const text of [ym, `${ym}-01`]) {
+    for (const t of ["mousedown", "mouseup", "click"]) fire(picker, t);
+    const typed = await until(() => [...doc.querySelectorAll<HTMLInputElement>(".ant-calendar-input")].find(visible), 1500);
+    if (!typed) break;
+    typed.focus();
+    setInputValue(typed, text);
+    press(typed, "Enter");
+    await wait(150);
+    if (read().startsWith(ym)) return { ok: true, actual: read() };
+    press(doc.body, "Escape");
+    await wait(80);
+  }
+  return { ok: read().startsWith(ym), actual: read() };
+}
+
 /** 填一个字段并读回核对。 */
 async function fillField(item: HTMLElement, f: FieldSpec, tpl: SiteTemplate): Promise<FieldResult> {
   const base = { label: f.name };
@@ -265,6 +292,17 @@ async function fillField(item: HTMLElement, f: FieldSpec, tpl: SiteTemplate): Pr
   const value = f.value?.trim();
   if (!value) return { ...base, status: "manual", note: "简历里没有这一项" };
   const input = inputs[0]!;
+
+  if (f.control === "date") {
+    const r = await pickAntDate(item, value);
+    return { ...base, status: r.ok ? "ok" : "manual", expected: value, actual: r.actual, note: r.ok ? undefined : "日期选择器没有接受输入，请手动选" };
+  }
+  // 页面上这个“文字框”其实是搜索下拉（如网易的公司名称）：按搜索下拉处理
+  if (f.control === "text" && isSearchInput(input) && !input.readOnly) {
+    const okPick = await pickSearch(input, value, tpl);
+    const actual = readItem(item);
+    return { ...base, status: okPick && clean(actual).includes(clean(value)) ? "ok" : "manual", expected: value, actual, note: okPick ? undefined : "下拉里没有匹配的选项，请手动选" };
+  }
 
   if (f.control === "select") {
     const okPick = await pickCustomSelect(input, f.words ?? [value.toLowerCase()], tpl);
@@ -290,7 +328,7 @@ async function fillRow(row: HTMLElement, spec: RowSpec, tpl: SiteTemplate): Prom
   const items = itemsOf(row, tpl);
   const out: FieldResult[] = [];
   for (const f of spec.fields) {
-    const item = items.find((it) => f.label.test(labelText(it)) && controlsOf(it).length > 0);
+    const item = items.filter((it) => f.label.test(labelText(it, tpl)) && controlsOf(it).length > 0)[f.nth ?? 0];
     if (!item) {
       // 页面没有这个字段就不算问题（比如没有“项目角色”）；简历有值而页面没有，也不用打扰用户
       continue;
@@ -312,9 +350,10 @@ function presentRow(rows: HTMLElement[], key: string, tpl: SiteTemplate): boolea
 
 export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteTemplate): Promise<SectionsReport> {
   const sections: SectionResult[] = [];
+  const layout = layoutOf(tpl);
 
   for (const spec of SECTIONS) {
-    const sec = findSection(doc, spec.title);
+    const sec = layout.findSection(doc, spec.title);
     if (!sec) continue;
     const wanted = spec.rows(resume);
     const result: SectionResult = { title: spec.name, wanted: wanted.length, kept: 0, filled: 0, fields: [] };
@@ -325,14 +364,14 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
     }
 
     for (const row of wanted) {
-      const existing = cards(sec);
+      const existing = layout.cards(sec);
       if (presentRow(existing, row.key, tpl)) {
         result.kept++;
         continue;
       }
       // 优先用现成的空行，没有再点“添加”
       let target = existing.find((c) => !rowHasContent(c, tpl));
-      if (!target) target = await addRow(sec);
+      if (!target) target = await addRow(sec, tpl);
       if (!target) {
         result.fields.push({ label: `${spec.name}「${row.key}」`, status: "manual", note: "找不到“添加”按钮或新行没有出现" });
         continue;
@@ -346,10 +385,10 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
 
   // 自我评价：单个文本框
   if (resume.summary) {
-    const sec = findSection(doc, SUMMARY.title);
+    const sec = layout.findSection(doc, SUMMARY.title);
     if (sec) {
       const result: SectionResult = { title: "自我评价", wanted: 1, kept: 0, filled: 0, fields: [] };
-      const item = itemsOf(sec, tpl).find((it) => SUMMARY.label.test(labelText(it)) && controlsOf(it).length > 0);
+      const item = itemsOf(sec, tpl).find((it) => SUMMARY.label.test(labelText(it, tpl)) && controlsOf(it).length > 0);
       if (item && readItem(item) !== "") result.kept = 1;
       else if (item) {
         result.filled = 1;

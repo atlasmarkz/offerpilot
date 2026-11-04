@@ -80,6 +80,8 @@
 
       .steps { margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
       .steps b { color: var(--brand); margin-right: 4px; }
+      .linkish { display: block; width: 100%; margin-top: 10px; padding: 4px; border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; }
+      .linkish:hover { color: var(--brand); }
       footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; text-align: center; }
     </style>
   </head>
@@ -127,6 +129,7 @@
       <li><b>3</b>检查内容，自己点提交</li>
     </ul>
 
+    <button id="diagnose" class="linkish" title="只复制页面的表单结构（标签、类型、类名），不含你填的任何内容">这个网站没填对？复制页面结构发给开发者</button>
     <footer>只填不提交 · 自动识别飞书 / Moka / 北森等投递系统 · 验证码由你自己完成</footer>
     <script type="module" src="./main.ts"></script>
   </body>

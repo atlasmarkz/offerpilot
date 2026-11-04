@@ -197,6 +197,46 @@ demoBtn.addEventListener("click", async () => {
 
 fillBtn.addEventListener("click", () => void runFill());
 
+// 适配新网站用：把当前页的表单结构（不含你填的内容）复制到剪贴板
+const diagnoseBtn = $<HTMLButtonElement>("diagnose");
+diagnoseBtn.addEventListener("click", async () => {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !/^https?:/i.test(tab.url ?? "")) {
+    diagnoseBtn.textContent = "当前页面不支持";
+    return;
+  }
+  diagnoseBtn.disabled = true;
+  diagnoseBtn.textContent = "收集中…";
+  const report = await new Promise<unknown>((resolve) => {
+    const timer = setTimeout(() => {
+      browser.runtime.onMessage.removeListener(onMsg);
+      resolve(undefined);
+    }, 8_000);
+    const onMsg = (m: unknown) => {
+      const msg = m as { type?: string; report?: unknown };
+      if (msg.type !== "offerpilot:diagnose") return;
+      clearTimeout(timer);
+      browser.runtime.onMessage.removeListener(onMsg);
+      resolve(msg.report);
+    };
+    browser.runtime.onMessage.addListener(onMsg);
+    browser.scripting.executeScript({ target: { tabId: tab.id! }, files: ["/content-scripts/diagnose.js"] }).catch(() => {
+      clearTimeout(timer);
+      browser.runtime.onMessage.removeListener(onMsg);
+      resolve(undefined);
+    });
+  });
+  try {
+    if (!report) throw new Error("no report");
+    await navigator.clipboard.writeText(JSON.stringify(report));
+    diagnoseBtn.textContent = "✓ 已复制，粘贴发给开发者即可";
+  } catch {
+    diagnoseBtn.textContent = "复制失败，请刷新页面后重试";
+  }
+  diagnoseBtn.disabled = false;
+  setTimeout(() => (diagnoseBtn.textContent = "这个网站没填对？复制页面结构发给开发者"), 4000);
+});
+
 async function runFill() {
   const profile = await loadProfile();
   if (!profile) {

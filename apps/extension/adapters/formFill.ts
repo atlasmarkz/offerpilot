@@ -1,4 +1,4 @@
-import type { DegreeLevel, Profile } from "@offerpilot/shared";
+import { PRIVATE_FIELDS, type DegreeLevel, type Profile } from "@offerpilot/shared";
 import { NATIVE_TEMPLATE, type SiteTemplate } from "./templates";
 import { setInputValue } from "./types";
 
@@ -31,30 +31,27 @@ interface Rule {
  * 只填画像里有、且无歧义的基础字段。手机、邮箱、证件号等敏感信息画像里没有，
  * 这里也不碰；验证码、文件上传、密码一律跳过。
  */
+/** 隐私字段里，画像里本来就有的那几个：用户没单独填时用画像的值 */
+const PROFILE_FALLBACK: Record<string, (p: Profile) => string | undefined> = {
+  姓名: (p) => (p.name === "未命名" ? undefined : p.name),
+  政治面貌: (p) => p.politicalStatus,
+  现居城市: (p) => p.cities[0],
+};
+
 const RULES: Rule[] = [
-  { key: "姓名", label: /姓名|^name$|full.?name/i, not: /用户名|公司|学校|昵称|联系人|紧急|家长|父母|推荐人/, value: (p) => (p.name === "未命名" ? undefined : p.name) },
   { key: "学校", label: /毕业院校|学校|院校|school|university/i, not: /邮箱|类型|标签|所在地/, value: (p) => (p.school === "-" ? undefined : p.school) },
   { key: "专业", label: /专业|major/i, not: /类别|方向类/, value: (p) => (p.major === "-" ? undefined : p.major) },
   { key: "毕业年份", label: /毕业(年份|年度|时间|日期)|expected graduation/i, value: (p) => `${p.graduationYear}` },
   { key: "学历", label: /学历|学位|degree|education level/i, not: /证书|证明/, value: (p) => DEGREE_LABEL[p.degree] },
-  // 以下几项画像里通常没有：用户在扩展里补充过就填，没有就报“缺少”，让用户补
-  { key: "手机", label: /手机|电话|mobile|\bphone\b|\btel\b/i, not: /验证码|紧急|家长|父母|监护|座机|传真|联系人/, value: () => undefined },
-  { key: "邮箱", label: /邮箱|e-?mail/i, not: /学校|院校|验证码|紧急|家长/, value: () => undefined },
-  { key: "性别", label: /性别|gender/i, value: () => undefined },
-  { key: "政治面貌", label: /政治面貌|political/i, value: (p) => p.politicalStatus },
-  { key: "现居城市", label: /现居|居住(地|城市)|所在城市|current city/i, not: /学校|公司|户籍/, value: (p) => p.cities[0] },
+  // 姓名、手机、邮箱、证件号、出生日期……：来自“个人隐私信息”目录（只存本机）；画像里有的（姓名、政治面貌、现居城市）作后备
+  ...PRIVATE_FIELDS.map((f): Rule => ({ key: f.key, label: f.label, not: f.not, value: PROFILE_FALLBACK[f.key] ?? (() => undefined) })),
 ];
 
 /** 缺少信息时，弹窗里给用户补充的输入项；options 表示用下拉选。 */
 export const EXTRA_FIELDS: { key: string; hint: string; options?: string[] }[] = [
-  { key: "姓名", hint: "真实姓名" },
   { key: "学校", hint: "毕业院校" },
   { key: "专业", hint: "所学专业" },
-  { key: "手机", hint: "11 位手机号" },
-  { key: "邮箱", hint: "常用邮箱" },
-  { key: "性别", hint: "", options: ["男", "女"] },
-  { key: "政治面貌", hint: "", options: ["中共党员", "中共预备党员", "共青团员", "群众"] },
-  { key: "现居城市", hint: "如 北京" },
+  ...PRIVATE_FIELDS.map((f) => ({ key: f.key, hint: f.hint, options: f.options })),
 ];
 
 /** 画像里的占位值（“未命名”“-”）不算有值 */
@@ -149,21 +146,32 @@ export interface FormFillReport {
   pending: { key: string; el: HTMLElement; words: string[] }[];
   /** 页面上有这个字段，但画像和补充信息里都没有值：交给用户补充 */
   missing: string[];
+  /** 页面上有、但目录里没有对应字段的空控件的标签（最多 12 个） */
+  unrecognized: string[];
 }
 
 /** 扫描页面上的表单控件并按标签填写。不提交、不点击任何按钮。 */
 export function fillForm(doc: Document, profile: Profile, opts: FillOptions = {}): FormFillReport {
   const extras = opts.extras ?? {};
   const template = opts.template ?? NATIVE_TEMPLATE;
-  const report: FormFillReport = { filled: [], manual: [], kept: [], pending: [], missing: [] };
+  const report: FormFillReport = { filled: [], manual: [], kept: [], pending: [], missing: [], unrecognized: [] };
   const done = new Set<string>();
   const controls = doc.querySelectorAll<HTMLElement>("input, textarea, select");
 
   for (const el of controls) {
     if (!visible(el)) continue;
     if (el instanceof HTMLInputElement && SKIP_TYPES.has(el.type)) continue;
-    const rule = ruleFor(labelOf(el, template)) ?? ruleFor(ancestorLabel(el));
-    if (!rule || done.has(rule.key)) continue;
+    const label = labelOf(el, template);
+    const rule = ruleFor(label) ?? ruleFor(ancestorLabel(el));
+    if (!rule) {
+      // 没认出的空控件（可重复区块里的由分区块填写处理，这里不算）：列给用户看，也方便把新字段补进目录
+      const shortLabel = label.split(" ").find((w) => w.length >= 2 && !/^(请|点击|按)/.test(w)) ?? "";
+      const empty = el instanceof HTMLSelectElement ? el.value === "" : !(el as HTMLInputElement).value.trim();
+      if (shortLabel && empty && !el.closest("[class*=apply-form-array-card], .u-wraps") && !report.unrecognized.includes(shortLabel) && report.unrecognized.length < 12)
+        report.unrecognized.push(shortLabel);
+      continue;
+    }
+    if (done.has(rule.key)) continue;
     const value = resolveValue(rule, profile, extras);
     if (!value) {
       // 控件里已经有内容就不用补；否则记为缺少

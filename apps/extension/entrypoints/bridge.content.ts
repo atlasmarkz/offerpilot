@@ -1,4 +1,4 @@
-import { Profile } from "@offerpilot/shared";
+import { Profile, normalizePrivateInfo } from "@offerpilot/shared";
 import { chooseResumeId, sanitizeResumes } from "../adapters/resumePick";
 
 /**
@@ -14,7 +14,7 @@ export default defineContentScript({
   main() {
     window.addEventListener("message", async (e: MessageEvent) => {
       if (e.source !== window || e.origin !== location.origin) return;
-      const data = e.data as { source?: string; type?: string; profile?: unknown; resumes?: unknown; activeId?: unknown } | null;
+      const data = e.data as { source?: string; type?: string; profile?: unknown; resumes?: unknown; activeId?: unknown; fields?: unknown } | null;
       if (data?.source !== "offerpilot-web") return;
 
       if (data.type === "profile") {
@@ -26,6 +26,15 @@ export default defineContentScript({
           ok = false; // 存储失败也要回执，网页才不会一直没反应
         }
         window.postMessage({ source: "offerpilot-ext", type: "profile-saved", ok }, location.origin);
+      } else if (data.type === "private") {
+        // 个人隐私信息（手机、邮箱、证件号等）：只在这个浏览器里从网页传到扩展的本机存储，不经过任何服务器
+        let ok = true;
+        try {
+          await browser.storage.local.set({ private: normalizePrivateInfo(data.fields) });
+        } catch {
+          ok = false;
+        }
+        window.postMessage({ source: "offerpilot-ext", type: "private-saved", ok }, location.origin);
       } else if (data.type === "resumes") {
         // 在线简历（可能多份，份数上限由平台决定）：逐份校验后存本机，填表时用户可选用哪一份
         let ok = true;

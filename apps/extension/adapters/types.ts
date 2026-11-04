@@ -6,6 +6,8 @@ import type { SectionResult } from "./sections";
 export interface FillMeta {
   template?: string;
   missing?: string[];
+  /** 页面上有、但我们还不认识的字段 */
+  unrecognized?: string[];
   /** 分区块填写（教育、实习、项目等）的逐项核对结果 */
   sections?: SectionResult[];
 }

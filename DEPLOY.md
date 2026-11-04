@@ -166,6 +166,10 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 
 SQL Editor 运行 `supabase/migrations/0006_free_allowance.sql`（可重复运行，要在 0004 之后）。免费用户每个自然月（UTC）可用站点模型 3 次，用完再用次数包；失败的调用自动退还。想改成别的次数，要同时改 `packages/shared/src/plans.ts` 的 `free.monthlyQuota` 和 0006 里的 `free_quota`。
 
+### 隐私清理（0008）
+
+姓名、手机、邮箱、证件号等个人隐私信息现在只存在用户自己的浏览器里，不上云（网页端的“个人隐私信息”面板，扩展本机读取）。SQL Editor 运行 `supabase/migrations/0008_scrub_private.sql`（可重复运行）：清掉此前已经上传的在线简历联系方式和云端画像里的姓名。服务端的保存接口也会主动丢弃这类字段。
+
 ### 多份在线简历（0007）
 
 SQL Editor 运行 `supabase/migrations/0007_multi_resume.sql`（可重复运行，要在 0005 之后）。它会创建 `resume_doc` 表，把旧版每人一份的简历搬过去，并加上份数上限：免费版 1 份，付费订阅最多 3 份。上限只由平台控制，浏览器扩展本身免费、不设限：扩展只会收到平台同步过来的简历，有多份时在扩展弹窗里选用哪一份填表。想改份数，要同时改 `packages/shared/src/plans.ts` 的 `resumes` 和 0007 里的数字。

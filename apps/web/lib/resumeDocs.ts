@@ -2,7 +2,7 @@ import { PLANS } from "@offerpilot/shared";
 import { billingEnabled } from "./billing/billing";
 import { loadPlan } from "./billing/plan";
 import { AuthError, pgReason, userRest } from "./auth/supabaseAuth";
-import { normalizeResume, withinSize, type ResumeData } from "./resumeData";
+import { emptyResume, normalizeResume, withinSize, type ResumeData } from "./resumeData";
 
 export const RESUME_DOC_COLUMNS = "id,name,data,updated_at";
 
@@ -22,7 +22,8 @@ export const cleanName = (v: unknown): string | undefined => {
 export const toDoc = (r: { id: string; name: string; data: unknown; updated_at: string }): ResumeDocRow => ({
   id: r.id,
   name: r.name,
-  data: normalizeResume(r.data),
+  // 姓名、手机、邮箱等联系方式只存在用户本机：旧数据里即使有，也不返回
+  data: { ...normalizeResume(r.data), contact: emptyResume().contact },
   updatedAt: r.updated_at,
 });
 
@@ -44,7 +45,8 @@ export async function listDocs(accessToken: string): Promise<ResumeDocRow[]> {
 
 /** 校验并规整请求里的简历内容；不合格返回给用户看的错误。 */
 export function parseResumeBody(raw: unknown): { data: ResumeData } | { error: string; status: number } {
-  const data = normalizeResume(raw);
+  // 联系方式（姓名、手机、邮箱、城市、链接）不上云：即使前端误传，这里也丢掉
+  const data: ResumeData = { ...normalizeResume(raw), contact: emptyResume().contact };
   if (!withinSize(data)) return { error: "简历内容过大", status: 413 };
   return { data };
 }

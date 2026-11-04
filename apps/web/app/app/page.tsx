@@ -16,6 +16,7 @@ import { EMPTY_FORM, EMPTY_LLM, toProfile, type Form, type LlmSettings } from ".
 import type { ResumeDraft } from "../../lib/resume";
 import { companyName } from "../../lib/companies";
 import { syncResumesFromCloud } from "../../lib/extensionSync";
+import { loadPrivate, postPrivateToExtension } from "../../lib/privateInfo";
 import { draftToResume, RESUME_KEY } from "../../lib/resumeLocal";
 import { flip, load, remove, save } from "../../lib/storage";
 
@@ -221,6 +222,7 @@ export default function Home() {
     if (!profile.success) return;
     window.postMessage({ source: "offerpilot-web", type: "profile", profile: profile.data }, window.location.origin);
     // 在线简历（教育、经历、联系方式等）一起同步，扩展填表时用
+    postPrivateToExtension(loadPrivate()); // 本机的隐私信息，只在浏览器内传给扩展
     void syncResumesFromCloud(!!session.user, load<string>("offerpilot.resume.active.v1", ""));
     // 1.5 秒内没有回执：没装扩展，或者扩展刚更新过、这个页面里的连接已失效
     setTimeout(() => setExt((s) => (s === "ready" ? "noreply" : s)), 1500);

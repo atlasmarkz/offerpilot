@@ -30,7 +30,6 @@ function Field({ label, children, wide }: { label: string; children: React.React
 
 export function ResumeEditor({ resume, onChange }: Props) {
   const set = (patch: Partial<ResumeData>) => onChange({ ...resume, ...patch });
-  const setContact = (patch: Partial<ResumeData["contact"]>) => set({ contact: { ...resume.contact, ...patch } });
 
   const setEdu = (i: number, patch: Partial<Education>) =>
     set({ education: resume.education.map((e, k) => (k === i ? { ...e, ...patch } : e)) });
@@ -39,35 +38,6 @@ export function ResumeEditor({ resume, onChange }: Props) {
 
   return (
     <div className="editor">
-      <section className="panel">
-        <div className="panel-head">
-          <h2>联系方式</h2>
-          <span className="hint">仅用于生成简历，不会发给大模型</span>
-        </div>
-        <div className="form-grid">
-          <Field label="姓名">
-            <input className="input" value={resume.contact.name} onChange={(e) => setContact({ name: e.target.value })} />
-          </Field>
-          <Field label="手机">
-            <input className="input" value={resume.contact.phone} onChange={(e) => setContact({ phone: e.target.value })} />
-          </Field>
-          <Field label="邮箱">
-            <input className="input" value={resume.contact.email} onChange={(e) => setContact({ email: e.target.value })} />
-          </Field>
-          <Field label="所在城市">
-            <input className="input" value={resume.contact.city} onChange={(e) => setContact({ city: e.target.value })} />
-          </Field>
-          <Field label="链接（GitHub、博客等，每行一个）" wide>
-            <textarea
-              className="input"
-              rows={2}
-              value={resume.contact.links.join("\n")}
-              onChange={(e) => setContact({ links: lines(e.target.value).slice(0, 5) })}
-            />
-          </Field>
-        </div>
-      </section>
-
       <section className="panel">
         <div className="panel-head">
           <h2>自我评价</h2>

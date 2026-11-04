@@ -51,5 +51,7 @@ describe("cloud data", () => {
   });
   it("strips secrets before storing", () => {
     expect(stripSecrets({ school: "x", llm: { apiKey: "k" }, apiKey: "k", llmApiKey: "k" })).toEqual({ school: "x" });
+    // 姓名等身份信息只存本机
+    expect(stripSecrets({ school: "x", name: "张三", phone: "1", email: "a@b.c", idNumber: "1", birthDate: "2000" })).toEqual({ school: "x" });
   });
 });

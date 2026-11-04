@@ -28,7 +28,7 @@ export const genericAdapter: SiteAdapter = {
     report.manual = report.manual.filter((k) => !sectionOk.some((l) => l.includes(k)));
     const unsure = sections.flatMap((s) => s.fields.filter((f) => f.status !== "ok").map((f) => `${f.label}${f.note ? `（${f.note}）` : ""}`));
     const missing = report.missing;
-    const meta = { ...metaBase, sections: sections.length ? sections : undefined };
+    const meta = { ...metaBase, sections: sections.length ? sections : undefined, unrecognized: report.unrecognized.length ? report.unrecognized : undefined };
     const done = report.filled;
     if (blocker) return { status: "needs_user", reason: blocker, filledFields: done, missing, ...meta };
     if (done.length === 0 && report.manual.length === 0 && report.kept.length === 0 && missing.length === 0 && sections.every((s) => !s.kept))

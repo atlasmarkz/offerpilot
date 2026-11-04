@@ -5,7 +5,10 @@ import { ResumeEditor } from "../../components/resume/ResumeEditor";
 import { ResumePreview } from "../../components/resume/ResumePreview";
 import { SuggestPanel } from "../../components/resume/SuggestPanel";
 import { TopBar } from "../../components/TopBar";
+import { PrivateInfoPanel } from "../../components/resume/PrivateInfoPanel";
 import { ResumeSwitcher } from "../../components/resume/ResumeSwitcher";
+import type { PrivateInfo } from "@offerpilot/shared";
+import { contactToInfo, infoToContact, loadPrivate, postPrivateToExtension, savePrivate } from "../../lib/privateInfo";
 import { useResumeDocs } from "../../hooks/useResumeDocs";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { EMPTY_LLM, type LlmSettings } from "../../lib/profileForm";
@@ -40,12 +43,32 @@ export default function ResumePage() {
   const session = useSession();
   const allowed = useRequireLogin(session);
   const docs = useResumeDocs({ user: session.user, legacy, ready, onSignedOut: session.signedOut });
-  const resume = docs.active?.data ?? legacy;
-  const setResume = docs.edit;
+  // 姓名、手机、邮箱等只存本机（priv），不进云端的简历；预览和导出时再合并进来
+  const [priv, setPriv] = useState<PrivateInfo>({});
+  const resume: ResumeData = { ...(docs.active?.data ?? legacy), contact: infoToContact(priv) };
+  const setResume = (next: ResumeData | ((r: ResumeData) => ResumeData)) => {
+    const r = typeof next === "function" ? next(resume) : next;
+    docs.edit({ ...r, contact: emptyResume().contact });
+  };
   const sync = { status: docs.status };
 
+  function updatePriv(next: PrivateInfo) {
+    setPriv(next);
+    savePrivate(next);
+    postPrivateToExtension(next);
+  }
+
   useEffect(() => {
-    setLegacy(normalizeResume(load<unknown>(RESUME_KEY, {})));
+    const old = normalizeResume(load<unknown>(RESUME_KEY, {}));
+    setLegacy(old);
+    // 旧版把联系方式存在简历里：本机还没有隐私信息时，把它们搬过来
+    let info = loadPrivate();
+    if (Object.keys(info).length === 0) {
+      info = contactToInfo(old.contact);
+      if (Object.keys(info).length) savePrivate(info);
+    }
+    setPriv(info);
+    if (Object.keys(info).length) postPrivateToExtension(info);
     setOwnModel(!!readLlm());
     setReady(true);
   }, []);
@@ -195,6 +218,7 @@ export default function ResumePage() {
         <div className="resume-grid">
           <div className="no-print">
             <SuggestPanel suggestions={suggestions} note={suggestNote} />
+            <PrivateInfoPanel info={priv} onChange={updatePriv} />
             <ResumeEditor resume={resume} onChange={setResume} />
           </div>
           <div className="resume-preview-col">

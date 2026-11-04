@@ -88,7 +88,8 @@ export function useCloudSync({ user, form, selected, ready, apply, onSignedOut }
           return;
         }
         const cloud: Cloud = {
-          profile: sanitizeForm(data.profile),
+          // 姓名只存本机，云端没有：对账时沿用本机的，不然每次都会被当成“有差异”
+          profile: { ...sanitizeForm(data.profile), name: local.profile.name },
           selected: Array.isArray(data.selected) ? data.selected.filter((x): x is string => typeof x === "string") : [],
         };
         if (same(cloud, local)) setActive(true);

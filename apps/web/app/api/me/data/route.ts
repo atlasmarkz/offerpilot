@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const rows = (await res.json()) as { profile: unknown; selected: string[]; updated_at: string }[];
     const r = rows[0];
     return jsonWith(
-      { data: r ? { profile: r.profile, selected: r.selected, updatedAt: r.updated_at } : null },
+      { data: r ? { profile: stripSecrets((r.profile ?? {}) as Record<string, unknown>), selected: r.selected, updatedAt: r.updated_at } : null },
       { cookies: s.setCookies },
     );
   } catch (e) {

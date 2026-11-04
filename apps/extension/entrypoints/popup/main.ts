@@ -1,4 +1,4 @@
-import { Profile } from "@offerpilot/shared";
+import { Profile, normalizePrivateInfo } from "@offerpilot/shared";
 import { EXTRA_FIELDS } from "../../adapters/formFill";
 import { pickResume, sanitizeResumes } from "../../adapters/resumePick";
 import { summarize } from "../../adapters/sections";
@@ -55,14 +55,15 @@ async function refresh() {
     school.append(tag);
   }
   setText("major", [p.major, `${p.graduationYear} 届`].filter(Boolean).join(" · "));
-  const stored = await browser.storage.local.get(["resumes", "resumeId", "resume"]);
+  const stored = await browser.storage.local.get(["resumes", "resumeId", "resume", "private"]);
+  const privateCount = Object.keys(normalizePrivateInfo(stored.private)).length;
   const list = sanitizeResumes(stored.resumes);
   const chosen = pickResume(stored);
   const r = chosen?.data;
   setText(
     "resume",
     r && (r.education.length || r.experiences.length || r.contact.phone)
-      ? `简历已同步：教育 ${r.education.length} 段 · 经历 ${r.experiences.length} 段${r.contact.phone && r.contact.email ? " · 含联系方式" : ""}`
+      ? `简历已同步：教育 ${r.education.length} 段 · 经历 ${r.experiences.length} 段${privateCount ? ` · 隐私信息 ${privateCount} 项（仅本机）` : ""}`
       : "还没同步在线简历：到网站的“简历工作台”填写后同步",
   );
   // 平台允许多份简历（付费订阅）时，才会同步过来多份；这里让用户选填表用哪一份
@@ -122,6 +123,12 @@ function render(o: FillOutcome) {
     resultBox.append(ul);
   }
   if (o.missing?.length) resultBox.append(missingForm(o.missing));
+  if (o.unrecognized?.length) {
+    const u = document.createElement("p");
+    u.className = "tpl";
+    u.textContent = `页面上还有这些项我暂时不认识：${o.unrecognized.join("、")}。点最下面“复制页面结构”发给开发者，就能补上。`;
+    resultBox.append(u);
+  }
   else if (o.status === "needs_user") {
     const more = document.createElement("p");
     more.textContent = "处理完后，请检查内容并自己点击提交。";
@@ -173,7 +180,7 @@ void refresh();
 
 // 网页端同步画像后，已经打开的弹窗也立刻刷新，不用关了重开
 browser.storage.onChanged.addListener((changes) => {
-  if (changes.profile || changes.resume || changes.resumes || changes.resumeId) void refresh();
+  if (changes.profile || changes.resume || changes.resumes || changes.resumeId || changes.private) void refresh();
 });
 
 // 填表脚本跑完后会把结果发回来；弹窗开着时随时显示（点击流程和自动化测试都走这里）

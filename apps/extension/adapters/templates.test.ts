@@ -48,14 +48,16 @@ describe("missing info and extras", () => {
     page(html);
     const r = fillForm(document, profile);
     expect(r.filled).toEqual(["姓名"]);
-    expect(r.missing.sort()).toEqual(["手机", "邮箱"]);
+    // 紧急联系人也在“个人隐私信息”目录里：页面问了就报缺少，但绝不会拿手机、姓名去顶替它
+    expect(r.missing.sort()).toEqual(["手机", "紧急联系人", "邮箱"]);
     expect((document.getElementById("c") as HTMLInputElement).value).toBe("");
   });
 
   it("fills them once the user supplies extras", () => {
     page(html);
-    const r = fillForm(document, profile, { extras: { 手机: "13800000000", 邮箱: "a@b.com" } });
+    const r = fillForm(document, profile, { extras: { 手机: "13800000000", 邮箱: "a@b.com", 紧急联系人: "李四" } });
     expect(r.missing).toEqual([]);
+    expect((document.getElementById("c") as HTMLInputElement).value).toBe("李四");
     expect((document.getElementById("p") as HTMLInputElement).value).toBe("13800000000");
     expect((document.getElementById("e") as HTMLInputElement).value).toBe("a@b.com");
   });
@@ -92,5 +94,33 @@ describe("real Feishu Hire markup (ud-formily)", () => {
           <div class="ud-formily-item"><div class="ud-formily-item-label"><label>邮箱*</label></div><div class="ud-formily-item-control"><div class="ud__input"><input class="ud__native-input"></div></div></div>`);
     const o = await genericAdapter.fill(document, profile, { 邮箱: "a@b.com" });
     expect(o).toMatchObject({ status: "filled", template: "飞书招聘", filledFields: ["姓名", "邮箱"] });
+  });
+});
+
+describe("private-info catalog drives the extra fields", () => {
+  it("fills ID number, birth date text, hometown, WeChat and address from local private info", () => {
+    page(`<label for="a">证件号码</label><input id="a">
+          <label for="b">籍贯</label><input id="b">
+          <label for="w">微信号</label><input id="w">
+          <label for="h">家庭住址</label><input id="h">
+          <label for="t">证件类型</label><input id="t">`);
+    const r = fillForm(document, profile, { extras: { 证件号码: "330106200001010011", 籍贯: "浙江杭州", 微信号: "wx_zs", 家庭住址: "某省某市某路 1 号" } });
+    expect((document.getElementById("a") as HTMLInputElement).value).toBe("330106200001010011");
+    expect((document.getElementById("b") as HTMLInputElement).value).toBe("浙江杭州");
+    expect((document.getElementById("w") as HTMLInputElement).value).toBe("wx_zs");
+    expect((document.getElementById("h") as HTMLInputElement).value).toBe("某省某市某路 1 号");
+    // “证件类型”不是“证件号码”，不能把号码填进去
+    expect((document.getElementById("t") as HTMLInputElement).value).toBe("");
+    expect(r.filled).toEqual(expect.arrayContaining(["证件号码", "籍贯", "微信号", "家庭住址"]));
+  });
+});
+
+describe("unrecognized fields", () => {
+  it("lists empty controls with no matching field, but not ones inside repeatable rows or already filled", () => {
+    page(`<label for="x">毕业去向</label><input id="x">
+          <label for="y">兴趣爱好</label><input id="y" value="游泳">
+          <div class="u-wraps"><label for="z">实验成果</label><input id="z"></div>`);
+    const r = fillForm(document, profile);
+    expect(r.unrecognized).toEqual(["毕业去向"]);
   });
 });

@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// 每行要等下拉、日期弹层，多行的用例会超过默认的 5 秒
+vi.setConfig({ testTimeout: 30_000 });
 import { ResumeData } from "@offerpilot/shared";
 import { fillSections } from "./sections";
 import { layoutOf } from "./sectionLayouts";
@@ -17,7 +20,7 @@ const date = (kind: "month" | "day") =>
   `<span class="ant-calendar-picker" data-kind="${kind}"><div><input class="ant-calendar-picker-input ant-input" readonly></div></span>`;
 
 const CARD: Record<string, () => string> = {
-  教育: () => `<div class="ant-row u-wraps">${item("入校时间", date("month"))}${item("获得学位证时间", date("day"))}${item("学校", search())}${item("所在学院", input())}${item("专业", input())}</div>`,
+  教育: () => `<div class="ant-row u-wraps">${item("入校时间", date("month"))}${item("获得学位证时间", date("day"))}${item("学校", search())}${item("所在学院", input())}${item("专业", input())}${item("实验室", input())}${item("导师", input())}${item("荣誉奖项", area())}</div>`,
   工作: () => `<div class="ant-row u-wraps">${item("工作时间", date("month"))}${item("工作时间", date("month"))}${item("公司名称", search())}${item("所在部门", input())}${item("岗位名称", input())}${item("工作职责", area())}</div>`,
   项目: () => `<div class="ant-row u-wraps">${item("项目时间", date("month"))}${item("项目时间", date("month"))}${item("项目名称", input())}${item("项目描述", area())}</div>`,
 };
@@ -40,6 +43,10 @@ function wire() {
     if (t.classList.contains("u-add")) {
       const mod = t.closest<HTMLElement>(".u-module")!;
       t.insertAdjacentHTML("beforebegin", CARD[mod.dataset.kind!]!());
+    }
+    if (t.classList.contains("anticon-plus-circle")) {
+      const cards = t.parentElement!.querySelectorAll(".u-wraps");
+      cards[cards.length - 1]!.insertAdjacentHTML("afterend", CARD[t.dataset.kind!]!());
     }
     const opt = t.closest<HTMLElement>(".ant-select-dropdown-menu-item");
     if (opt) {
@@ -71,7 +78,7 @@ function wire() {
     if (!t.classList.contains("ant-select-search__field") || !t.value) return;
     t.setAttribute("data-open", "true");
     document.querySelectorAll(".ant-select-dropdown").forEach((d) => d.remove());
-    const list = (t.closest(".u-module")?.getAttribute("data-kind") === "教育" ? SCHOOLS : COMPANIES).filter((n) => n.includes(t.value));
+    const list = (t.closest("[data-kind].u-module, [data-kind].content")?.getAttribute("data-kind") === "教育" ? SCHOOLS : COMPANIES).filter((n) => n.includes(t.value));
     const dd = document.createElement("div");
     dd.className = "ant-select-dropdown";
     dd.innerHTML = `<ul>${list.map((n) => `<li class="ant-select-dropdown-menu-item">${n}</li>`).join("")}</ul>`;
@@ -156,5 +163,49 @@ describe("fillSections on Netease-style markup", () => {
     const { sections } = await fillSections(document, resume, netease);
     const dates = sections[0]!.fields.filter((f) => f.label.includes("时间"));
     expect(dates.every((f) => f.status === "manual")).toBe(true);
+  });
+});
+
+describe("netease: flat page, left nav, plus icon, highest degree first, extra education fields", () => {
+  const flat = (eduRows: number) => `
+    <ul class="nav"><li>1. 个人信息（必填）</li><li>2. 教育背景（必填）</li><li>3. 工作/实习经历</li></ul>
+    <div class="content" data-kind="教育">
+      <div class="u-title">2. 教育背景（必填）</div>
+      ${Array.from({ length: eduRows }, () => CARD["教育"]!()).join("")}
+      <i class="anticon anticon-plus-circle" data-kind="教育"></i>
+    </div>
+    <div class="content" data-kind="工作"><div class="u-title">3. 工作/实习经历</div>${CARD["工作"]!()}<span class="u-add">+ 添加</span></div>`;
+
+  it("ignores the nav entries and bounds each section by the next numbered heading", () => {
+    document.body.innerHTML = flat(2);
+    const layout = layoutOf(netease);
+    const edu = layout.findSection(document, /教育/)!;
+    expect(layout.cards(edu)).toHaveLength(2);
+    expect(layout.cards(layout.findSection(document, /实习/)!)).toHaveLength(1);
+    expect(layout.addButton(edu)?.className).toContain("anticon-plus-circle");
+  });
+
+  it("fills the highest degree first, adds a row with the plus icon, and fills college / lab / advisor / honours", async () => {
+    document.body.innerHTML = flat(1);
+    const r = ResumeData.parse({
+      education: [
+        { school: "华北电力大学", major: "智能科学与技术", degree: "本科", start: "2018-09", end: "2022-06", college: "控制与计算机工程学院", honors: "2021 国家奖学金" },
+        { school: "香港科技大学", major: "计算机科学与技术", degree: "硕士", start: "2022-09", end: "2024-06", lab: "NLP 实验室", advisor: "李老师" },
+      ],
+    });
+    await fillSections(document, r, netease);
+    const rows = [...document.querySelectorAll('[data-kind="教育"] .u-wraps')];
+    expect(rows).toHaveLength(2);
+    const school = (row: Element) => row.querySelector(".ant-select-selection-selected-value")?.textContent;
+    expect(school(rows[0]!)).toBe("香港科技大学"); // 硕士在前
+    expect(school(rows[1]!)).toBe("华北电力大学");
+    const text = (row: Element, label: string) => {
+      const it = [...row.querySelectorAll(".ant-form-item")].find((x) => x.querySelector(".ant-form-item-label")?.textContent === label)!;
+      return (it.querySelector("input, textarea") as HTMLInputElement).value;
+    };
+    expect(text(rows[0]!, "实验室")).toBe("NLP 实验室");
+    expect(text(rows[0]!, "导师")).toBe("李老师");
+    expect(text(rows[1]!, "所在学院")).toBe("控制与计算机工程学院");
+    expect(text(rows[1]!, "荣誉奖项")).toBe("2021 国家奖学金");
   });
 });

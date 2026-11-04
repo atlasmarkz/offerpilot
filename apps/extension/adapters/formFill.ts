@@ -192,6 +192,12 @@ export function fillForm(doc: Document, profile: Profile, opts: FillOptions = {}
       report.pending.push({ key: rule.key, el: input, words: wordsFor(rule.key, value, profile) });
       continue;
     }
+    // 搜索下拉的输入框（Ant Design 的 select-search、飞书的学校搜索）：只往里打字不会选中，反而留下一个没选的状态。
+    // 交给分区块填写（会点选项并核对）；那里没处理的，提示用户自己选
+    if (input.matches("[class*=select-search__field], [class*=select__selector__search__input]")) {
+      report.manual.push(rule.key);
+      continue;
+    }
     setInputValue(input, value);
     report.filled.push(rule.key);
     done.add(rule.key);

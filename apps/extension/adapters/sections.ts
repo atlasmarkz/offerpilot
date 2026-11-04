@@ -1,7 +1,7 @@
 import type { ResumeData } from "@offerpilot/shared";
 import { pickCustomSelect, visible } from "./formFill";
 import type { SiteTemplate } from "./templates";
-import { layoutOf } from "./sectionLayouts";
+import { layoutOf, type Section } from "./sectionLayouts";
 import { setInputValue } from "./types";
 
 /**
@@ -58,7 +58,7 @@ interface RowSpec {
 interface SectionSpec {
   name: string;
   title: RegExp;
-  rows: (r: ResumeData) => RowSpec[];
+  rows: (r: ResumeData, ctx: { highestFirst: boolean }) => RowSpec[];
 }
 
 const DEGREE_WORDS: [RegExp, string[]][] = [
@@ -77,15 +77,25 @@ export function normMonth(v: string | undefined): string {
 const clean = (s: string | null | undefined) => (s ?? "").replace(/[\s*＊:：]+/g, "");
 const bullets = (b: string[]) => b.map((x) => x.trim()).filter(Boolean).join("\n");
 
+/** 学历高低：博士 > 硕士 > 本科 > 其他 */
+const degreeRank = (d: string) => (/博士|phd|doctor/i.test(d) ? 3 : /硕士|研究生|master/i.test(d) ? 2 : /本科|学士|bachelor/i.test(d) ? 1 : 0);
+
+/** “专业前 5%” -> ["前5%", "5%"]；取不出百分数返回 undefined */
+function rankWords(v: string): string[] | undefined {
+  const m = v.match(/前\s*(\d+(?:\.\d+)?)\s*%/) ?? v.match(/(\d+(?:\.\d+)?)\s*%/);
+  return m ? [`前${m[1]}%`, `${m[1]}%`] : undefined;
+}
+
 const range = (start?: string, end?: string): FieldSpec["range"] => [normMonth(start), normMonth(end)];
 
 const SECTIONS: SectionSpec[] = [
   {
     name: "教育经历",
     title: /教育/,
-    rows: (r) =>
-      r.education
+    rows: (r, ctx) =>
+      [...r.education]
         .filter((e) => e.school)
+        .sort((a, b) => (ctx.highestFirst ? degreeRank(b.degree) - degreeRank(a.degree) : 0))
         .map((e) => ({
           key: e.school,
           fields: [
@@ -96,7 +106,13 @@ const SECTIONS: SectionSpec[] = [
             { label: /^入校时间$/, name: "入校时间", control: "date", value: normMonth(e.start) },
             { label: /^(获得学位证时间|毕业时间)$/, name: "毕业时间", control: "date", value: normMonth(e.end) },
             { label: /^学历类型$/, name: "学历类型", control: "select", manualReason: "简历里没有这一项" },
-            ...(e.gpa ? [{ label: /^(GPA|成绩|绩点|排名)/i, name: "成绩", control: "text" as const, value: e.gpa }] : []),
+            { label: /^(所在学院|学院)$/, name: "所在学院", control: "text", value: e.college },
+            { label: /^实验室$/, name: "实验室", control: "text", value: e.lab },
+            { label: /^导师$/, name: "导师", control: "text", value: e.advisor },
+            { label: /^荣誉奖项$/, name: "荣誉奖项", control: "text", value: e.honors },
+            // 班级/专业排名是下拉（如“前10%”）：从“成绩 / 排名”里取百分数去匹配选项
+            ...(rankWords(e.gpa) ? [{ label: /^(班级排名|专业排名|成绩排名)$/, name: "排名", control: "select" as const, value: e.gpa, words: rankWords(e.gpa) }] : []),
+            ...(e.gpa ? [{ label: /^(GPA|成绩|绩点)/i, name: "成绩", control: "text" as const, value: e.gpa }] : []),
           ],
         })),
   },
@@ -121,7 +137,7 @@ const SECTIONS: SectionSpec[] = [
               { label: /^(起止时间|实习时间|时间)$/, name: "起止时间", control: "range", range: range(x.start, x.end) },
               { label: /^(工作时间|实习时间)$/, name: "开始时间", control: "date", value: normMonth(x.start), nth: 0 },
               { label: /^(工作时间|实习时间)$/, name: "结束时间", control: "date", value: normMonth(x.end), nth: 1 },
-              { label: /^(所在部门)$/, name: "所在部门", control: "text", manualReason: "简历里没有这一项" },
+              { label: /^(所在部门|部门)$/, name: "所在部门", control: "text", value: x.department },
               { label: /^(描述|工作内容|工作描述|经历描述|工作职责)$/, name: "描述", control: "text", value: bullets(x.bullets) },
             ],
           })),
@@ -198,14 +214,14 @@ function readItem(item: HTMLElement): string {
 
 const rowHasContent = (row: HTMLElement, tpl: SiteTemplate) => itemsOf(row, tpl).some((it) => readItem(it) !== "");
 
-/** 点“添加”，等新行出现，返回新行 */
-async function addRow(sec: HTMLElement, tpl: SiteTemplate): Promise<HTMLElement | undefined> {
+/** 点“添加”，等新行出现，返回新行（不一定在最后：“+”可能把新行插在当前行后面） */
+async function addRow(sec: Section, tpl: SiteTemplate): Promise<HTMLElement | undefined> {
   const layout = layoutOf(tpl);
-  const before = layout.cards(sec).length;
+  const before = new Set(layout.cards(sec));
   const btn = layout.addButton(sec);
   if (!btn) return undefined;
-  btn.click();
-  return until(() => (layout.cards(sec).length > before ? layout.cards(sec).at(-1) : undefined), 2500);
+  for (const t of ["mousedown", "mouseup", "click"]) fire(btn, t);
+  return until(() => layout.cards(sec).find((c) => !before.has(c)), 2500);
 }
 
 async function writeText(input: HTMLInputElement, v: string): Promise<void> {
@@ -233,9 +249,16 @@ async function pickSearch(input: HTMLInputElement, text: string, tpl: SiteTempla
     press(doc.body, "Escape");
     return false;
   }
-  for (const t of ["mousedown", "mouseup", "click"]) fire(hit, t);
-  await wait(150);
-  return true;
+  const open = () => [...doc.querySelectorAll<HTMLElement>(optSel)].some(visible);
+  for (const t of ["mouseover", "mousedown", "mouseup", "click"]) fire(hit, t);
+  await wait(250);
+  // 点了选项下拉还开着：说明页面没接受点击，改用键盘（第一项默认高亮，回车选中）
+  if (open()) {
+    press(input, "ArrowDown");
+    press(input, "Enter");
+    await wait(250);
+  }
+  return !open();
 }
 
 async function writeMonth(input: HTMLInputElement, v: string): Promise<void> {
@@ -355,7 +378,7 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
   for (const spec of SECTIONS) {
     const sec = layout.findSection(doc, spec.title);
     if (!sec) continue;
-    const wanted = spec.rows(resume);
+    const wanted = spec.rows(resume, { highestFirst: tpl.layout === "netease" });
     const result: SectionResult = { title: spec.name, wanted: wanted.length, kept: 0, filled: 0, fields: [] };
     if (!wanted.length) {
       result.note = "简历里没有这一类内容";
@@ -388,7 +411,7 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
     const sec = layout.findSection(doc, SUMMARY.title);
     if (sec) {
       const result: SectionResult = { title: "自我评价", wanted: 1, kept: 0, filled: 0, fields: [] };
-      const item = itemsOf(sec, tpl).find((it) => SUMMARY.label.test(labelText(it, tpl)) && controlsOf(it).length > 0);
+      const item = itemsOf(sec.el, tpl).find((it) => SUMMARY.label.test(labelText(it, tpl)) && controlsOf(it).length > 0);
       if (item && readItem(item) !== "") result.kept = 1;
       else if (item) {
         result.filled = 1;

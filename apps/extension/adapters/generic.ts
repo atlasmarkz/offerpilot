@@ -17,11 +17,15 @@ export const genericAdapter: SiteAdapter = {
     const { template } = detectTemplate(doc);
     const metaBase = { template: template.name };
     const blocker = detectBlocker(doc);
+    // 可重复区块（教育、实习、项目……）先做：有适配的模板才做，逐项读回核对。
+    // 要先于基础字段，否则基础字段会抢先往第一行的学校、专业里打字，区块里就当成“已有内容”跳过了
+    const sections = template.sections && resume ? (await fillSections(doc, resume, template)).sections : [];
     const report = fillForm(doc, profile, { extras, template });
     await fillCustomSelects(report, template);
-    // 可重复区块（教育、实习、项目……）：有适配的模板才做，逐项读回核对
-    const sections = template.sections && resume ? (await fillSections(doc, resume, template)).sections : [];
     for (const s of sections) if (s.filled) report.filled.push(`${s.title} ${s.filled} 条`);
+    // 区块里已经选好的字段，不再要求用户手动选
+    const sectionOk = sections.flatMap((s) => s.fields.filter((f) => f.status === "ok").map((f) => f.label));
+    report.manual = report.manual.filter((k) => !sectionOk.some((l) => l.includes(k)));
     const unsure = sections.flatMap((s) => s.fields.filter((f) => f.status !== "ok").map((f) => `${f.label}${f.note ? `（${f.note}）` : ""}`));
     const missing = report.missing;
     const meta = { ...metaBase, sections: sections.length ? sections : undefined };

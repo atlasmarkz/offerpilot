@@ -90,7 +90,7 @@ export function ResumeEditor({ resume, onChange }: Props) {
             style={{ marginLeft: "auto" }}
             disabled={resume.education.length >= 6}
             onClick={() =>
-              set({ education: [...resume.education, { school: "", major: "", degree: "", start: "", end: "", gpa: "", highlights: [] }] })
+              set({ education: [...resume.education, { school: "", major: "", degree: "", start: "", end: "", gpa: "", college: "", lab: "", advisor: "", honors: "", highlights: [] }] })
             }
           >
             ＋ 添加
@@ -117,6 +117,18 @@ export function ResumeEditor({ resume, onChange }: Props) {
               </Field>
               <Field label="成绩 / 排名">
                 <input className="input" placeholder="如 专业前 5%" value={e.gpa} onChange={(ev) => setEdu(i, { gpa: ev.target.value })} />
+              </Field>
+              <Field label="所在学院">
+                <input className="input" placeholder="如 控制与计算机工程学院" value={e.college} onChange={(ev) => setEdu(i, { college: ev.target.value })} />
+              </Field>
+              <Field label="实验室（选填）">
+                <input className="input" value={e.lab} onChange={(ev) => setEdu(i, { lab: ev.target.value })} />
+              </Field>
+              <Field label="导师（选填）">
+                <input className="input" value={e.advisor} onChange={(ev) => setEdu(i, { advisor: ev.target.value })} />
+              </Field>
+              <Field label="荣誉奖项（获奖时间 + 名称，选填；投递页常单独问）" wide>
+                <textarea className="input" rows={2} value={e.honors} onChange={(ev) => setEdu(i, { honors: ev.target.value })} />
               </Field>
               <Field label="要点（荣誉、课程等，每行一条）" wide>
                 <textarea className="input" rows={2} value={e.highlights.join("\n")} onChange={(ev) => setEdu(i, { highlights: lines(ev.target.value).slice(0, 8) })} />
@@ -162,6 +174,9 @@ export function ResumeEditor({ resume, onChange }: Props) {
               </Field>
               <Field label="公司 / 机构">
                 <input className="input" value={x.org ?? ""} onChange={(ev) => setExp(i, { org: ev.target.value })} />
+              </Field>
+              <Field label="所在部门（实习 / 工作，选填）">
+                <input className="input" value={x.department ?? ""} onChange={(ev) => setExp(i, { department: ev.target.value })} />
               </Field>
               <Field label="开始">
                 <input className="input" value={x.start ?? ""} onChange={(ev) => setExp(i, { start: ev.target.value })} />

@@ -11,6 +11,11 @@ export const Education = z.object({
   start: short(20),
   end: short(20),
   gpa: short(40),
+  /** 所在学院、实验室、导师、荣誉奖项：很多官方投递页会单独问，在平台填好后各家都能直接用 */
+  college: short(80),
+  lab: short(80),
+  advisor: short(40),
+  honors: short(500),
   highlights: z.array(z.string().max(300)).max(8).default([]),
 });
 export type Education = z.infer<typeof Education>;

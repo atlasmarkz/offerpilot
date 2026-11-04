@@ -14,6 +14,8 @@ export const ExperienceAtom = z.object({
   kind: z.enum(["project", "internship", "research", "award", "campus"]),
   title: z.string(),
   org: z.string().optional(),
+  /** 实习/工作所在部门 */
+  department: z.string().optional(),
   start: z.string().optional(),
   end: z.string().optional(),
   bullets: z.array(z.string()),

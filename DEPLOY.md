@@ -166,6 +166,10 @@ Supabase 内置的发信服务**只能发给你团队成员的邮箱，且每小
 
 SQL Editor 运行 `supabase/migrations/0006_free_allowance.sql`（可重复运行，要在 0004 之后）。免费用户每个自然月（UTC）可用站点模型 3 次，用完再用次数包；失败的调用自动退还。想改成别的次数，要同时改 `packages/shared/src/plans.ts` 的 `free.monthlyQuota` 和 0006 里的 `free_quota`。
 
+### 多份在线简历（0007）
+
+SQL Editor 运行 `supabase/migrations/0007_multi_resume.sql`（可重复运行，要在 0005 之后）。它会创建 `resume_doc` 表，把旧版每人一份的简历搬过去，并加上份数上限：免费版 1 份，付费订阅最多 3 份。上限只由平台控制，浏览器扩展本身免费、不设限：扩展只会收到平台同步过来的简历，有多份时在扩展弹窗里选用哪一份填表。想改份数，要同时改 `packages/shared/src/plans.ts` 的 `resumes` 和 0007 里的数字。
+
 ### 附件简历、投递看板、会员等级（0005）
 
 SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复运行）。它会创建 `attachment`、`board_item`、`app_settings` 表，数量上限触发器，以及私有存储桶 `resumes` 及其存储策略。运行后到 Supabase 的 Storage 页面确认 `resumes` 桶存在且是 **Private**。
@@ -177,6 +181,7 @@ SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复�
 - [ ] 线上页面能看到已审核的岗位，看不到待审核的。
 - [ ] 已运行 `0003_user_data.sql`，Email OTP Length 为 6，Confirm signup / Reset Password 模板含 `{{ .Token }}`，并配置了自己的 SMTP；能用真实邮箱完成登录。
 - [ ] 开启计费时：`0004` 已运行，`SUPABASE_SERVICE_KEY` 仅设在服务端，未登录用站点模型会被拒绝，额度不足返回 402。
+- [ ] 已运行 `0007`，免费账号只能建 1 份在线简历，开通会员后能建到 3 份；扩展弹窗里能选用哪一份。
 - [ ] 已运行 `0006`，免费账号每月能用 3 次站点模型，第 4 次提示额度用完。
 - [ ] 已运行 `0005`，Storage 里 `resumes` 桶是 Private；免费账号传第 2 份附件会被拒，开通会员后可传到 3 份。
 - [ ] 隐私说明页（`/privacy`）打开正常，内容和你实际使用的大模型服务相符。

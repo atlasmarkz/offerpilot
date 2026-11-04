@@ -1,18 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ResumeEditor } from "../../components/resume/ResumeEditor";
 import { ResumePreview } from "../../components/resume/ResumePreview";
 import { SuggestPanel } from "../../components/resume/SuggestPanel";
 import { TopBar } from "../../components/TopBar";
-import { useResumeSync } from "../../hooks/useResumeSync";
+import { ResumeSwitcher } from "../../components/resume/ResumeSwitcher";
+import { useResumeDocs } from "../../hooks/useResumeDocs";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { EMPTY_LLM, type LlmSettings } from "../../lib/profileForm";
 import type { ResumeDraft } from "../../lib/resume";
-import { postResumeToExtension } from "../../lib/extensionSync";
 import { draftToResume, isBlankResume, RESUME_KEY } from "../../lib/resumeLocal";
 import { emptyResume, normalizeResume, type ResumeData } from "../../lib/resumeData";
-import { load, save } from "../../lib/storage";
+import { load } from "../../lib/storage";
 import type { Suggestions } from "../../lib/suggest";
 
 const LLM_KEY = "offerpilot.llm.v1";
@@ -26,7 +26,7 @@ function readLlm(): LlmSettings | undefined {
 type Msg = { ok: boolean; text: string };
 
 export default function ResumePage() {
-  const [resume, setResume] = useState<ResumeData>(emptyResume());
+  const [legacy, setLegacy] = useState<ResumeData>(emptyResume());
   const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -39,21 +39,16 @@ export default function ResumePage() {
 
   const session = useSession();
   const allowed = useRequireLogin(session);
-  const applyCloud = useCallback((r: ResumeData) => setResume(r), []);
-  const sync = useResumeSync({ user: session.user, resume, ready, apply: applyCloud, onSignedOut: session.signedOut });
+  const docs = useResumeDocs({ user: session.user, legacy, ready, onSignedOut: session.signedOut });
+  const resume = docs.active?.data ?? legacy;
+  const setResume = docs.edit;
+  const sync = { status: docs.status };
 
   useEffect(() => {
-    setResume(normalizeResume(load<unknown>(RESUME_KEY, {})));
+    setLegacy(normalizeResume(load<unknown>(RESUME_KEY, {})));
     setOwnModel(!!readLlm());
     setReady(true);
   }, []);
-  useEffect(() => {
-    if (ready) {
-      save(RESUME_KEY, resume);
-      // 已装扩展时顺带更新它手里的简历，不用再回岗位页点同步
-      if (!isBlankResume(resume)) postResumeToExtension(resume);
-    }
-  }, [resume, ready]);
 
   const billing = session.usage.billing;
   const costHint = billing && !ownModel ? "本次将消耗 1 次额度" : ownModel ? "使用你自己的模型，不消耗额度" : "";
@@ -122,19 +117,21 @@ export default function ResumePage() {
     <>
       <TopBar session={session} active="resume" status={sync.status} />
       <main className="app resume-app">
-        {sync.conflict && (
-          <div className="panel conflict no-print" role="alertdialog" aria-label="选择以哪份简历为准">
-            <b>云端和这台设备上各有一份不同的简历。</b>
-            <span>你想以哪份为准？选好之前不会覆盖任何一边。</span>
-            <span className="conflict-actions">
-              <button className="btn sm" onClick={() => void sync.resolveConflict("cloud")}>
-                用云端的（覆盖本机）
-              </button>
-              <button className="btn ghost sm" onClick={() => void sync.resolveConflict("local")}>
-                用本机的（覆盖云端）
-              </button>
-            </span>
-          </div>
+        {docs.loaded && (
+          <ResumeSwitcher
+            docs={docs.docs}
+            activeId={docs.activeId}
+            max={docs.max}
+            onSelect={(id) => void docs.select(id)}
+            onCreate={docs.create}
+            onRename={(id, name) => void docs.rename(id, name)}
+            onRemove={(id) => void docs.remove(id)}
+          />
+        )}
+        {docs.error && (
+          <p className="msg err no-print" role="alert">
+            {docs.error}
+          </p>
         )}
 
         <section className="panel no-print toolbar" aria-label="操作">

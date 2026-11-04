@@ -18,6 +18,8 @@ export interface PlanInfo {
   monthlyQuota: number;
   /** 附件简历个数上限 */
   attachments: number;
+  /** 在线简历份数上限（扩展里可选择用哪一份填表；数据库 0007 里同样写了，要一起改） */
+  resumes: number;
   /** 投递看板里最多放多少条 */
   boardItems: number;
   features: PlanFeature[];
@@ -32,13 +34,14 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     tagline: "先把岗位筛清楚",
     monthlyQuota: 3,
     attachments: 1,
+    resumes: 1,
     boardItems: 20,
     features: [
       { text: "全网校招 / 实习岗位检索与硬条件筛选" },
       { text: "画像与已选岗位云端同步" },
       { text: "浏览器扩展基础填表" },
       { text: "简历在线编辑与导出 PDF" },
-      { text: "1 份附件简历" },
+      { text: "1 份在线简历 + 1 份附件简历" },
       { text: "投递看板（最多 20 条）" },
       { text: "每月 3 次 AI（简历解析、修改建议）" },
       { text: "自带大模型 Key 使用 AI 功能，不限次数" },
@@ -50,9 +53,11 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     tagline: "开始用 AI 打磨简历",
     monthlyQuota: 30,
     attachments: 3,
+    resumes: 3,
     boardItems: 100,
     features: [
       { text: "每月 30 次 AI（简历解析 + 修改建议）" },
+      { text: "最多 3 份在线简历，扩展里可选用哪份填表" },
       { text: "最多 3 份附件简历" },
       { text: "投递看板（最多 100 条）" },
       { text: "岗位提醒（最多 5 条订阅）", soon: true },
@@ -64,6 +69,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     tagline: "针对每个岗位定制投递",
     monthlyQuota: 100,
     attachments: 3,
+    resumes: 3,
     boardItems: 300,
     features: [
       { text: "包含基础版全部权益" },
@@ -80,6 +86,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     tagline: "求职季的全套工具",
     monthlyQuota: 300,
     attachments: 3,
+    resumes: 3,
     boardItems: 1000,
     features: [
       { text: "包含 Plus 全部权益" },

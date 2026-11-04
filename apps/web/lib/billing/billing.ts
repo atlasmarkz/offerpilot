@@ -82,7 +82,7 @@ export interface Usage {
   periodEnd: string | null;
   credits: number;
   /** 该等级的附件简历、看板条数上限 */
-  limits: { attachments: number; boardItems: number };
+  limits: { attachments: number; boardItems: number; resumes: number };
 }
 
 interface SubRow {
@@ -102,7 +102,7 @@ export function summarizeUsage(sub: SubRow | undefined, credits: number | undefi
   return {
     billing: true,
     plan,
-    limits: { attachments: PLANS[plan].attachments, boardItems: PLANS[plan].boardItems },
+    limits: { attachments: PLANS[plan].attachments, boardItems: PLANS[plan].boardItems, resumes: PLANS[plan].resumes },
     quota,
     used,
     remaining: Math.max(quota - used, 0),

@@ -235,7 +235,7 @@ npm run build -w @offerpilot/web           # 生产构建
 
 免费方案（Vercel + Supabase + GitHub Actions）、邮箱验证码与发信配置、托管版计费、以及流量变大后的付费时机，见 **[DEPLOY.md](DEPLOY.md)**。要点：
 
-1. Supabase 建项目，依次运行 `supabase/migrations/` 里的 SQL（`0002` ~ `0006`）。
+1. Supabase 建项目，依次运行 `supabase/migrations/` 里的 SQL（`0002` ~ `0007`）。
 2. 本机采集、验证、同步岗位。
 3. Vercel 导入仓库，Root Directory 选 `apps/web`，填 Supabase 环境变量。
 4. Supabase 里配置邮件模板（带 `{{ .Token }}` 验证码）和自己的 SMTP。

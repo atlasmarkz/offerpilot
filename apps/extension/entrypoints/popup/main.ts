@@ -1,5 +1,6 @@
-import { Profile, normalizeResume } from "@offerpilot/shared";
+import { Profile } from "@offerpilot/shared";
 import { EXTRA_FIELDS } from "../../adapters/formFill";
+import { pickResume, sanitizeResumes } from "../../adapters/resumePick";
 import { summarize } from "../../adapters/sections";
 import type { FillOutcome } from "../../adapters/types";
 
@@ -54,15 +55,29 @@ async function refresh() {
     school.append(tag);
   }
   setText("major", [p.major, `${p.graduationYear} 届`].filter(Boolean).join(" · "));
-  const { resume } = await browser.storage.local.get("resume");
-  const r = resume ? normalizeResume(resume) : undefined;
+  const stored = await browser.storage.local.get(["resumes", "resumeId", "resume"]);
+  const list = sanitizeResumes(stored.resumes);
+  const chosen = pickResume(stored);
+  const r = chosen?.data;
   setText(
     "resume",
     r && (r.education.length || r.experiences.length || r.contact.phone)
       ? `简历已同步：教育 ${r.education.length} 段 · 经历 ${r.experiences.length} 段${r.contact.phone && r.contact.email ? " · 含联系方式" : ""}`
       : "还没同步在线简历：到网站的“简历工作台”填写后同步",
   );
+  // 平台允许多份简历（付费订阅）时，才会同步过来多份；这里让用户选填表用哪一份
+  const picker = $<HTMLSelectElement>("resume-pick");
+  $("resume-pick-row").hidden = list.length < 2;
+  if (list.length >= 2) {
+    picker.replaceChildren(...list.map((x) => new Option(x.name, x.id)));
+    picker.value = chosen?.id ?? list[0]!.id;
+  }
 }
+
+$<HTMLSelectElement>("resume-pick").addEventListener("change", async (e) => {
+  await browser.storage.local.set({ resumeId: (e.target as HTMLSelectElement).value });
+  void refresh();
+});
 
 /** 把填表结果画成状态卡片：成功 / 需要你处理 / 没有填写。 */
 function render(o: FillOutcome) {
@@ -158,7 +173,7 @@ void refresh();
 
 // 网页端同步画像后，已经打开的弹窗也立刻刷新，不用关了重开
 browser.storage.onChanged.addListener((changes) => {
-  if (changes.profile || changes.resume) void refresh();
+  if (changes.profile || changes.resume || changes.resumes || changes.resumeId) void refresh();
 });
 
 // 填表脚本跑完后会把结果发回来；弹窗开着时随时显示（点击流程和自动化测试都走这里）

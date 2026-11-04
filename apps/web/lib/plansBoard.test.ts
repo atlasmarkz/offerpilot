@@ -19,8 +19,8 @@ describe("plans", () => {
   it("reports tier limits in the usage summary", () => {
     const now = new Date("2026-11-10T00:00:00Z");
     const u = summarizeUsage({ plan: "plus", quota: 100, used: 1, period_end: "2027-01-01T00:00:00Z" }, 0, now);
-    expect(u).toMatchObject({ plan: "plus", limits: { attachments: 3, boardItems: 300 } });
-    expect(summarizeUsage(undefined, 0, now).limits).toEqual({ attachments: 1, boardItems: 20 });
+    expect(u).toMatchObject({ plan: "plus", limits: { attachments: 3, boardItems: 300, resumes: 3 } });
+    expect(summarizeUsage(undefined, 0, now).limits).toEqual({ attachments: 1, boardItems: 20, resumes: 1 });
     // 免费版：每月 3 次，已用的从本月流水算
     expect(summarizeUsage(undefined, 0, now, 2)).toMatchObject({ plan: "free", quota: 3, used: 2, remaining: 1 });
     expect(summarizeUsage(undefined, 0, now, 5).remaining).toBe(0);

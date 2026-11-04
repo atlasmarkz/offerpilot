@@ -1,6 +1,7 @@
-import { Profile, normalizeResume } from "@offerpilot/shared";
+import { Profile } from "@offerpilot/shared";
 import { findAdapter } from "../adapters";
 import { resumeExtras } from "../adapters/resumeFacts";
+import { pickResume } from "../adapters/resumePick";
 import type { FillOutcome } from "../adapters/types";
 
 /**
@@ -11,14 +12,14 @@ export default defineContentScript({
   registration: "runtime",
   matches: ["*://*/*"],
   async main() {
-    const { profile, extras, resume } = await browser.storage.local.get(["profile", "extras", "resume"]);
+    const { profile, extras, resumes, resumeId, resume } = await browser.storage.local.get(["profile", "extras", "resumes", "resumeId", "resume"]);
     const parsed = Profile.safeParse(profile);
     const typed: Record<string, string> =
       extras && typeof extras === "object" ? Object.fromEntries(Object.entries(extras).filter(([, v]) => typeof v === "string")) : {};
     // 在线简历里的联系方式打底，弹窗里手动补充的覆盖它
-    const extraValues = { ...resumeExtras(resume ? normalizeResume(resume) : undefined), ...typed };
+    const parsedResume = pickResume({ resumes, resumeId, resume })?.data;
+    const extraValues = { ...resumeExtras(parsedResume), ...typed };
 
-    const parsedResume = resume ? normalizeResume(resume) : undefined;
     let outcome: FillOutcome;
     if (!parsed.success) {
       outcome = { status: "failed", error: "还没有画像，请先在 OfferPilot 网页端同步" };

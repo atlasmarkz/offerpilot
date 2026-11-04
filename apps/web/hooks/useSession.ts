@@ -11,7 +11,7 @@ export interface AccountUser {
 export interface UsageInfo {
   billing: boolean;
   plan?: PlanId;
-  limits?: { attachments: number; boardItems: number };
+  limits?: { attachments: number; boardItems: number; resumes: number };
   quota?: number;
   used?: number;
   remaining?: number;

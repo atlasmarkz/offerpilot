@@ -6,6 +6,7 @@ import type { FillOutcome } from "../../adapters/types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const fillBtn = $<HTMLButtonElement>("fill");
+const checkBtn = $<HTMLButtonElement>("check");
 const demoBtn = $<HTMLButtonElement>("demo");
 const resultBox = $("result");
 
@@ -87,7 +88,17 @@ function render(o: FillOutcome) {
   resultBox.replaceChildren();
 
   const h = document.createElement("h2");
-  h.textContent = o.status === "filled" ? "✓ 已填写" : o.status === "needs_user" ? "! 已填写，还需要你处理" : "✕ 没有填写";
+  h.textContent = o.check
+    ? o.status === "filled"
+      ? "✓ 核对完成：没有发现不一致"
+      : o.status === "needs_user"
+        ? "! 核对完成：有需要你看的地方"
+        : "✕ 没有核对"
+    : o.status === "filled"
+      ? "✓ 已填写"
+      : o.status === "needs_user"
+        ? "! 已填写，还需要你处理"
+        : "✕ 没有填写";
   resultBox.append(h);
 
   if (o.status !== "failed" && o.filledFields.length) {
@@ -103,7 +114,7 @@ function render(o: FillOutcome) {
   }
   const note = document.createElement("p");
   note.textContent =
-    o.status === "filled" ? "请检查填好的内容，然后自己点击提交。" : o.status === "needs_user" ? o.reason : o.error;
+    o.status === "filled" ? (o.check ? "页面上的内容和你的简历一致，没有改动任何内容。" : "请检查填好的内容，然后自己点击提交。") : o.status === "needs_user" ? o.reason : o.error;
   resultBox.append(note);
   if (o.template) {
     const t = document.createElement("p");
@@ -203,6 +214,7 @@ demoBtn.addEventListener("click", async () => {
 });
 
 fillBtn.addEventListener("click", () => void runFill());
+checkBtn.addEventListener("click", () => void runFill(true));
 
 // 适配新网站用：把当前页的表单结构（不含你填的内容）复制到剪贴板
 const diagnoseBtn = $<HTMLButtonElement>("diagnose");
@@ -244,7 +256,7 @@ diagnoseBtn.addEventListener("click", async () => {
   setTimeout(() => (diagnoseBtn.textContent = "这个网站没填对？复制页面结构发给开发者"), 4000);
 });
 
-async function runFill() {
+async function runFill(check = false) {
   const profile = await loadProfile();
   if (!profile) {
     render({ status: "failed", error: "还没有画像：请先在网站同步画像，或点“用示例画像试用”。" });
@@ -257,13 +269,16 @@ async function runFill() {
   }
 
   fillBtn.disabled = true;
-  fillBtn.textContent = "填写中…";
-  // 填表脚本跑完后会发回结果；10 秒没有回报就提示失败
+  checkBtn.disabled = true;
+  fillBtn.textContent = check ? "核对中…" : "填写中…";
+  // 核对模式只比对不写入：用一个一次性的标记告诉填表脚本（它读完就删）
+  await browser.storage.local.set({ fillMode: check ? "check" : "fill" });
+  // 填表脚本跑完后会发回结果；多段经历要等下拉、日期弹层，最多等 45 秒
   const outcome = await new Promise<FillOutcome>((resolve) => {
     const timer = setTimeout(() => {
       browser.runtime.onMessage.removeListener(onMsg);
       resolve({ status: "failed", error: "页面没有响应，请刷新页面后重试" });
-    }, 10_000);
+    }, 45_000);
     const onMsg = (m: unknown) => {
       const msg = m as { type?: string; outcome?: FillOutcome };
       if (msg.type !== "offerpilot:result" || !msg.outcome) return;
@@ -282,5 +297,6 @@ async function runFill() {
   });
   render(outcome);
   fillBtn.disabled = false;
+  checkBtn.disabled = false;
   fillBtn.textContent = "填写当前页面";
 }

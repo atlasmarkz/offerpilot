@@ -8,6 +8,10 @@ export interface FillMeta {
   missing?: string[];
   /** 页面上有、但我们还不认识的字段 */
   unrecognized?: string[];
+  /** 页面上已有的内容和简历 / 画像不一致的项（只提示，不改页面） */
+  differs?: { label: string; expected: string; actual: string }[];
+  /** 核对模式：只比对、不写任何内容 */
+  check?: boolean;
   /** 分区块填写（教育、实习、项目等）的逐项核对结果 */
   sections?: SectionResult[];
 }
@@ -28,7 +32,7 @@ export interface SiteAdapter {
   matches: RegExp[];
   /** 检测当前页面是否出现验证码等阻断项 */
   detectBlocker(doc: Document): string | null;
-  fill(doc: Document, profile: Profile, extras?: Extras, resume?: ResumeData): Promise<FillOutcome>;
+  fill(doc: Document, profile: Profile, extras?: Extras, resume?: ResumeData, opts?: { check?: boolean }): Promise<FillOutcome>;
 }
 
 /** 在 input/textarea 上写值并触发框架可感知的事件。 */

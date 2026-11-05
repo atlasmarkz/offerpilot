@@ -12,7 +12,10 @@ export default defineContentScript({
   registration: "runtime",
   matches: ["*://*/*"],
   async main() {
-    const { profile, extras, resumes, resumeId, resume, private: privateInfo } = await browser.storage.local.get(["profile", "extras", "resumes", "resumeId", "resume", "private"]);
+    const { profile, extras, resumes, resumeId, resume, private: privateInfo, fillMode } = await browser.storage.local.get(["profile", "extras", "resumes", "resumeId", "resume", "private", "fillMode"]);
+    // 弹窗里点“核对页面”时会先写入 fillMode=check：这次只比对，不写任何内容
+    const check = fillMode === "check";
+    await browser.storage.local.remove("fillMode");
     const parsed = Profile.safeParse(profile);
     const typed: Record<string, string> =
       extras && typeof extras === "object" ? Object.fromEntries(Object.entries(extras).filter(([, v]) => typeof v === "string")) : {};
@@ -27,7 +30,7 @@ export default defineContentScript({
     } else {
       const adapter = findAdapter(location.href);
       outcome = adapter
-        ? await adapter.fill(document, parsed.data, extraValues, parsedResume).catch((e: Error) => ({ status: "failed", error: e.message }) as FillOutcome)
+        ? await adapter.fill(document, parsed.data, extraValues, parsedResume, { check }).catch((e: Error) => ({ status: "failed", error: e.message }) as FillOutcome)
         : { status: "failed", error: "当前页面暂无适配器" };
     }
     await browser.runtime.sendMessage({ type: "offerpilot:result", outcome });

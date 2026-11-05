@@ -209,3 +209,48 @@ describe("netease: flat page, left nav, plus icon, highest degree first, extra e
     expect(text(rows[1]!, "荣誉奖项")).toBe("2021 国家奖学金");
   });
 });
+
+describe("rows already on the page (e.g. the site's own resume parser filled them)", () => {
+  const prefilled = () => {
+    document.body.innerHTML = `<div>${module("2. 教育背景（必填）", "教育", 1)}</div>`;
+    const card = document.querySelector(".u-wraps")!;
+    card.querySelector(".ant-select-selection")!.insertAdjacentHTML("afterbegin", '<div class="ant-select-selection-selected-value">香港科技大学</div>');
+    const byLabel = (l: string) =>
+      [...card.querySelectorAll(".ant-form-item")].find((x) => x.querySelector(".ant-form-item-label")?.textContent === l)!.querySelector("input, textarea") as HTMLInputElement;
+    byLabel("专业").value = "错误的专业名";
+    return { card, byLabel };
+  };
+  const r = ResumeData.parse({
+    education: [{ school: "香港科技大学", major: "计算机科学与技术", degree: "硕士", start: "2022-09", end: "2024-06", college: "工学院", lab: "NLP 实验室" }],
+  });
+
+  it("completes the empty fields of an existing row but never overwrites what is there", async () => {
+    const { byLabel } = prefilled();
+    const { sections } = await fillSections(document, r, netease);
+    expect(byLabel("所在学院").value).toBe("工学院"); // 空着的补上
+    expect(byLabel("实验室").value).toBe("NLP 实验室");
+    expect(byLabel("专业").value).toBe("错误的专业名"); // 已有内容不动
+    const f = sections[0]!.fields.find((x) => x.label.endsWith("专业"))!;
+    expect(f).toMatchObject({ status: "mismatch", actual: "错误的专业名", expected: "计算机科学与技术" });
+    expect(sections[0]!.kept).toBe(1);
+    expect(document.querySelectorAll(".u-wraps")).toHaveLength(1);
+  });
+
+  it("check mode compares only: nothing is written, empty and differing fields are reported", async () => {
+    const { byLabel } = prefilled();
+    const { sections } = await fillSections(document, r, netease, "check");
+    expect(byLabel("所在学院").value).toBe("");
+    expect(byLabel("实验室").value).toBe("");
+    expect(byLabel("专业").value).toBe("错误的专业名");
+    const status = Object.fromEntries(sections[0]!.fields.map((x) => [x.label.replace(/^.*」/, ""), x.status]));
+    expect(status["专业"]).toBe("mismatch");
+    expect(status["所在学院"]).toBe("manual");
+  });
+
+  it("check mode reports a school the page does not have instead of adding a row", async () => {
+    document.body.innerHTML = `<div>${module("2. 教育背景（必填）", "教育", 1)}</div>`;
+    const { sections } = await fillSections(document, r, netease, "check");
+    expect(document.querySelectorAll(".u-wraps")).toHaveLength(1);
+    expect(sections[0]!.fields[0]).toMatchObject({ status: "mismatch", actual: "页面上没有这一条" });
+  });
+});

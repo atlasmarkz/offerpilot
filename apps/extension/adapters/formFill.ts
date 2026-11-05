@@ -6,6 +6,8 @@ import { setInputValue } from "./types";
 export type Extras = Record<string, string>;
 
 export interface FillOptions {
+  /** 核对模式：只比对页面上已有的内容，不写任何东西 */
+  check?: boolean;
   extras?: Extras;
   template?: SiteTemplate;
 }
@@ -122,6 +124,15 @@ function ruleFor(label: string): Rule | undefined {
   return RULES.find((r) => r.label.test(label) && !(r.not && r.not.test(label)));
 }
 
+/** 页面上的值和我们的值是不是同一个意思：忽略空白标点，互相包含即算一致；手机、证件号、日期只比数字。 */
+export function sameValue(key: string, expected: string, actual: string): boolean {
+  const digitsOnly = /手机|证件号码|紧急联系人电话|出生日期/.test(key);
+  const norm = (s: string) => (digitsOnly ? s.replace(/\D/g, "") : s.replace(/[\s*＊:：,，.。、\-_/]+/g, "").toLowerCase());
+  const e = norm(expected);
+  const a = norm(actual);
+  return !e || !a || e === a || a.includes(e) || e.includes(a);
+}
+
 /** 在下拉选项文字里匹配用的词：学历有多种写法，其余就用值本身 */
 function wordsFor(key: string, value: string, profile: Profile): string[] {
   return key === "学历" && value === DEGREE_LABEL[profile.degree] ? DEGREE_WORDS[profile.degree] : [value.toLowerCase()];
@@ -148,13 +159,17 @@ export interface FormFillReport {
   missing: string[];
   /** 页面上有、但目录里没有对应字段的空控件的标签（最多 12 个） */
   unrecognized: string[];
+  /** 页面上已有的内容和我们的信息对不上 */
+  differs: { label: string; expected: string; actual: string }[];
+  /** 核对模式下：页面上是空的、我们有值的字段 */
+  empty: string[];
 }
 
 /** 扫描页面上的表单控件并按标签填写。不提交、不点击任何按钮。 */
 export function fillForm(doc: Document, profile: Profile, opts: FillOptions = {}): FormFillReport {
   const extras = opts.extras ?? {};
   const template = opts.template ?? NATIVE_TEMPLATE;
-  const report: FormFillReport = { filled: [], manual: [], kept: [], pending: [], missing: [], unrecognized: [] };
+  const report: FormFillReport = { filled: [], manual: [], kept: [], pending: [], missing: [], unrecognized: [], differs: [], empty: [] };
   const done = new Set<string>();
   const controls = doc.querySelectorAll<HTMLElement>("input, textarea, select");
 
@@ -177,6 +192,20 @@ export function fillForm(doc: Document, profile: Profile, opts: FillOptions = {}
       // 控件里已经有内容就不用补；否则记为缺少
       const hasContent = !(el instanceof HTMLSelectElement) && (el as HTMLInputElement).value.trim() !== "";
       if (!hasContent && !report.missing.includes(rule.key)) report.missing.push(rule.key);
+      continue;
+    }
+
+    // 页面上已经有内容（比如网站自己的简历解析填的）：比对一下，不一致的列给用户，绝不覆盖
+    const current = (el instanceof HTMLSelectElement ? (el.value ? (el.selectedOptions[0]?.text ?? "") : "") : (el as HTMLInputElement).value).trim();
+    if (current) {
+      if (!sameValue(rule.key, value, current)) report.differs.push({ label: rule.key, expected: value, actual: current });
+      if (opts.check || !(el instanceof HTMLSelectElement)) {
+        report.kept.push(rule.key);
+        done.add(rule.key);
+        continue;
+      }
+    } else if (opts.check) {
+      report.empty.push(rule.key);
       continue;
     }
 
@@ -212,7 +241,7 @@ export function fillForm(doc: Document, profile: Profile, opts: FillOptions = {}
   }
   report.manual = report.manual.filter((k) => !done.has(k));
   report.missing = report.missing.filter((k) => !done.has(k));
-  fillGenderRadios(doc, real(extras["性别"]?.trim()), report);
+  if (!opts.check) fillGenderRadios(doc, real(extras["性别"]?.trim()), report);
   return report;
 }
 

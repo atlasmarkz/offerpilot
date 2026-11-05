@@ -361,6 +361,48 @@ async function fillRow(row: HTMLElement, spec: RowSpec, tpl: SiteTemplate): Prom
   return out;
 }
 
+
+/** 页面上是不是已经有这一条：返回那一行。 */
+function findPresentRow(rows: HTMLElement[], key: string, tpl: SiteTemplate): HTMLElement | undefined {
+  const k = clean(key);
+  return k === "" ? undefined : rows.find((r) => itemsOf(r, tpl).some((it) => clean(readItem(it)).includes(k)));
+}
+
+/** 页面上的值和简历的值是不是同一个意思（宽松：互相包含即可；日期按年月比）。 */
+function sameField(f: FieldSpec, actual: string): boolean {
+  const v = f.value ?? "";
+  if (f.control === "date" || f.control === "month") return normMonth(actual) === v || actual.startsWith(v);
+  const a = clean(actual);
+  const e = clean(v);
+  if (f.control === "select" && f.words?.length) return f.words.some((w) => a.toLowerCase().includes(clean(w).toLowerCase()));
+  return !e || !a || a.includes(e) || e.includes(a);
+}
+
+/**
+ * 页面上已经有的一行（比如网站自己的简历解析填的）：逐字段核对。
+ * 一致 -> ok；不一致 -> 只提示、不覆盖；页面是空的 -> 填模式下补上，核对模式下只提示。
+ */
+async function reconcileRow(row: HTMLElement, spec: RowSpec, tpl: SiteTemplate, mode: "fill" | "check"): Promise<FieldResult[]> {
+  const items = itemsOf(row, tpl);
+  const out: FieldResult[] = [];
+  for (const f of spec.fields) {
+    if (f.manualReason || f.control === "range") continue;
+    const value = f.value?.trim();
+    if (!value) continue;
+    const item = items.filter((it) => f.label.test(labelText(it, tpl)) && controlsOf(it).length > 0)[f.nth ?? 0];
+    if (!item) continue;
+    const actual = readItem(item);
+    if (actual !== "") {
+      out.push(sameField(f, actual) ? { label: f.name, status: "ok" } : { label: f.name, status: "mismatch", expected: value.slice(0, 40), actual: actual.slice(0, 40), note: "页面已有内容，未覆盖" });
+    } else if (mode === "check") {
+      out.push({ label: f.name, status: "manual", expected: value.slice(0, 40), note: "页面是空的" });
+    } else {
+      out.push(await fillField(item, f, tpl));
+    }
+  }
+  return out;
+}
+
 export interface SectionsReport {
   sections: SectionResult[];
 }
@@ -371,7 +413,7 @@ function presentRow(rows: HTMLElement[], key: string, tpl: SiteTemplate): boolea
   return k !== "" && rows.some((r) => itemsOf(r, tpl).some((it) => clean(readItem(it)).includes(k)));
 }
 
-export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteTemplate): Promise<SectionsReport> {
+export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteTemplate, mode: "fill" | "check" = "fill"): Promise<SectionsReport> {
   const sections: SectionResult[] = [];
   const layout = layoutOf(tpl);
 
@@ -388,8 +430,16 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
 
     for (const row of wanted) {
       const existing = layout.cards(sec);
-      if (presentRow(existing, row.key, tpl)) {
+      const present = findPresentRow(existing, row.key, tpl);
+      if (present) {
         result.kept++;
+        // 页面已有这一条：不重填，但逐字段核对；空着的字段补上，不一致的只提示
+        const fields = await reconcileRow(present, row, tpl, mode);
+        for (const f of fields) result.fields.push({ ...f, label: `${spec.name}「${row.key.slice(0, 12)}」${f.label}` });
+        continue;
+      }
+      if (mode === "check") {
+        result.fields.push({ label: `${spec.name}「${row.key.slice(0, 12)}」`, status: "mismatch", expected: row.key, actual: "页面上没有这一条" });
         continue;
       }
       // 优先用现成的空行，没有再点“添加”
@@ -413,6 +463,7 @@ export async function fillSections(doc: Document, resume: ResumeData, tpl: SiteT
       const result: SectionResult = { title: "自我评价", wanted: 1, kept: 0, filled: 0, fields: [] };
       const item = itemsOf(sec.el, tpl).find((it) => SUMMARY.label.test(labelText(it, tpl)) && controlsOf(it).length > 0);
       if (item && readItem(item) !== "") result.kept = 1;
+      else if (item && mode === "check") result.fields.push({ label: "自我评价", status: "manual", note: "页面是空的" });
       else if (item) {
         result.filled = 1;
         result.fields.push(await fillField(item, { label: SUMMARY.label, name: "自我评价", control: "text", value: resume.summary }, tpl));

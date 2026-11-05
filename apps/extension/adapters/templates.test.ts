@@ -124,3 +124,22 @@ describe("unrecognized fields", () => {
     expect(r.unrecognized).toEqual(["毕业去向"]);
   });
 });
+
+describe("check mode for basic fields", () => {
+  it("reports values that differ from the profile and fills nothing", () => {
+    page(`<label for="s">毕业院校</label><input id="s" value="另一所大学">
+          <label for="m">专业</label><input id="m" value="计算机科学与技术">
+          <label for="n">姓名</label><input id="n">`);
+    const r = fillForm(document, profile, { check: true });
+    expect(r.differs).toEqual([{ label: "学校", expected: profile.school, actual: "另一所大学" }]);
+    expect(r.empty).toContain("姓名");
+    expect((document.getElementById("n") as HTMLInputElement).value).toBe("");
+    expect(r.filled).toEqual([]);
+  });
+  it("in fill mode it still does not overwrite, but flags the difference", () => {
+    page(`<label for="s">毕业院校</label><input id="s" value="另一所大学">`);
+    const r = fillForm(document, profile);
+    expect((document.getElementById("s") as HTMLInputElement).value).toBe("另一所大学");
+    expect(r.differs).toHaveLength(1);
+  });
+});

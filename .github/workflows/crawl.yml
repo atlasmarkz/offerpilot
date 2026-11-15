@@ -1,20 +1,30 @@
 name: crawl-and-sync
 
-# 定时采集岗位并同步到 Supabase。需要在仓库 Settings → Secrets and variables → Actions 里配置：
+# 每天采集一次岗位并同步到 Supabase，同时判断哪些岗位已下架。需要在仓库 Settings → Secrets and variables → Actions 里配置：
 #   SUPABASE_URL、SUPABASE_SERVICE_KEY
-# 采集到的新岗位在库里默认是“待审核”，网页端只展示已审核的。
-# 这里用 --keep-review 同步：只更新内容，不会把你已通过的岗位重置。审核在本机做：
-#   本机 crawl → review approve-company ... → npm run sync（不带 --keep-review）把审核状态推上去。
-# 流程跑稳后再打开下面的 schedule。
+# 数据库要先运行到 supabase/migrations/0010_job_freshness.sql。
+#
+# 每天的流程：
+#   1. crawl：采集所有数据源，记下每个数据源这次是否“取全”（data/last-run.json）。
+#   2. sync --keep-review：以数据库为准——
+#      新岗位：数据源之前有岗位审核通过（整组抽查过）就直接上线，否则待审核；
+#      已有岗位：刷新内容、记为刚确认在招；已取全的数据源里连续两天找不到的岗位标记下架。
+#      不会改动你已经审核过的状态。
+#   3. recheck：没取全的数据源（如字节只取前 300 条），每天打开最久没确认的几个岗位详情页复查，连续两次打不开才下架。
+# 新数据源（第一次出现）的岗位仍然需要在本机审核：本机 crawl → npm run verify → npm run sync。
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "0 20 * * 0" # 每周日 20:00 UTC（北京时间周一凌晨 4 点）
+  schedule:
+    - cron: "0 19 * * *" # 每天 19:00 UTC（北京时间凌晨 3 点）
+
+concurrency:
+  group: crawl-and-sync
+  cancel-in-progress: false
 
 jobs:
   crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,6 +35,12 @@ jobs:
       # ubuntu 运行器自带 Google Chrome，采集器用系统 Chrome，不需要下载浏览器
       - run: npm run crawl -w @offerpilot/crawler
       - run: npm run sync -w @offerpilot/crawler -- --keep-review
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      - run: npm run recheck -w @offerpilot/crawler -- --per-source 8 --stale-days 3
+        # 复查失败（网络等）不影响已经同步好的数据
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

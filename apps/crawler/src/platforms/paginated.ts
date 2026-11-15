@@ -1,3 +1,4 @@
+import { guessPostedAt } from "@offerpilot/shared";
 import type { Page, Response } from "playwright-core";
 import { withPage } from "../browser";
 import type { RawPosting, SourceAdapter } from "../pipeline";
@@ -16,6 +17,8 @@ export interface PaginatedSpec<T> {
   map(item: T, cfg: SourceConfig): Record<string, unknown>;
   /** 可选：丢弃不要的条目（如同一入口里混着社招） */
   keep?(item: T, cfg: SourceConfig): boolean;
+  /** 可选：发布日期（YYYY-MM-DD）；不给就从常见字段（publishTime、refreshTime……）里猜 */
+  postedAt?(item: T): string | undefined;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -53,6 +56,8 @@ export function paginatedSource<T>(cfg: SourceConfig, spec: PaginatedSpec<T>): S
     async fetchPostings(): Promise<RawPosting[]> {
       const byId = new Map<string, T>();
       let total: number | undefined;
+      // 为什么停下：end 翻到了最后一页；cap 到了 maxJobs；error 中途出错。只有 end 才算“取全”
+      let stop = "cap" as "end" | "cap" | "error";
 
       await withPage(
         cfg.url,
@@ -63,15 +68,19 @@ export function paginatedSource<T>(cfg: SourceConfig, spec: PaginatedSpec<T>): S
             while (byId.size < cfg.maxJobs) {
               let ok = await goNext(page, spec.nextButton, () => byId.size);
               if (!ok) ok = await goNext(page, spec.nextButton, () => byId.size); // 偶发漏响应，重试一次
-              if (!ok) break;
+              if (!ok) {
+                stop = "end";
+                break;
+              }
               pages++;
               await sleep(600);
             }
           } catch (e) {
             // 翻页中途出错：保留已取得的数据，不整体失败
+            stop = "error";
             console.warn(`[${cfg.id}] 翻页中断: ${(e as Error).message.split("\n")[0]}`);
           }
-          console.log(`[${cfg.id}] 翻了 ${pages} 页，取得 ${byId.size}/${total ?? "?"} 条`);
+          console.log(`[${cfg.id}] 翻了 ${pages} 页，取得 ${byId.size}/${total ?? "?"} 条（${stop === "end" ? "翻到了最后一页" : stop === "cap" ? "到达条数上限" : "中途出错"}）`);
         },
         {
           beforeNavigate: (page) =>
@@ -93,7 +102,9 @@ export function paginatedSource<T>(cfg: SourceConfig, spec: PaginatedSpec<T>): S
       const candidates = [...byId.values()]
         .filter((item) => spec.keep?.(item, cfg) ?? true)
         .slice(0, cfg.maxJobs)
-        .map((item) => spec.map(item, cfg));
+        .map((item) => ({ postedAt: spec.postedAt?.(item) ?? guessPostedAt(item), ...spec.map(item, cfg) }));
+      // “下一页”按钮没了，但接口说的总数比拿到的多很多：多半是漏了响应，不能算取全
+      const complete = stop === "end" && byId.size <= cfg.maxJobs && (total === undefined || byId.size >= total * 0.98);
       return [
         {
           sourceUrl: cfg.url,
@@ -103,6 +114,7 @@ export function paginatedSource<T>(cfg: SourceConfig, spec: PaginatedSpec<T>): S
           companyId: cfg.companyId,
           companyType: cfg.companyType,
           candidates,
+          complete,
         },
       ];
     },

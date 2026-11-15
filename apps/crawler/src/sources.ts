@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { CompanyType } from "@offerpilot/shared";
 import { renderPage } from "./browser";
+import { alibabaSource } from "./platforms/alibaba";
+import { beisenSource } from "./platforms/beisen";
 import { bilibiliSource } from "./platforms/bilibili";
+import { oppoSource } from "./platforms/oppo";
+import { pddSource } from "./platforms/pdd";
 import { ctripSource } from "./platforms/ctrip";
 import { feishuSource } from "./platforms/feishu";
 import { janeStreetSource } from "./platforms/janestreet";
@@ -27,7 +31,7 @@ const SourceConfig = z.object({
   /** 备注：为什么启用/停用、已知限制 */
   note: z.string().optional(),
   /** 专用平台适配器；generic 走网页文字加大模型抽取 */
-  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd", "bilibili", "netease", "xiaohongshu", "mihoyo", "janestreet", "neteasehr", "ctrip", "tonghuashun"]).default("generic"),
+  platform: z.enum(["generic", "feishu", "tencent", "meituan", "jd", "bilibili", "netease", "xiaohongshu", "mihoyo", "janestreet", "neteasehr", "ctrip", "tonghuashun", "alibaba", "pdd", "oppo", "beisen"]).default("generic"),
   /** 单个数据源本次最多取多少条，防止字节这类 7000 条的站跑太久 */
   maxJobs: z.number().int().positive().default(300),
   /** 岗位详情页（也是投递入口）模板，{id} 会被替换 */
@@ -121,6 +125,14 @@ export function createSource(cfg: SourceConfig): SourceAdapter {
       return tonghuashunSource(cfg);
     case "bilibili":
       return bilibiliSource(cfg);
+    case "alibaba":
+      return alibabaSource(cfg);
+    case "beisen":
+      return beisenSource(cfg);
+    case "pdd":
+      return pddSource(cfg);
+    case "oppo":
+      return oppoSource(cfg);
     default:
       return pageSource(cfg);
   }

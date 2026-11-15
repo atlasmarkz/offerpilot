@@ -1,6 +1,7 @@
 "use client";
 
 import { companyHue, companyName } from "../lib/companies";
+import { dateLabel } from "../lib/jobMeta";
 import type { Match } from "../lib/match";
 
 interface Props {
@@ -55,6 +56,7 @@ export function JobList({ items, total, selected, activeId, onOpen, onToggle, on
                 <CompanyTag id={job.companyId} />
                 <span className="badge muted">{job.kind === "intern" ? "实习" : "校招"}</span>
                 <span>{job.city.join(" / ") || "城市未标注"}</span>
+                {dateLabel(job) && <span className="job-date">{dateLabel(job)}</span>}
                 {job.reviewStatus !== "approved" && <span className="badge warn">未审核</span>}
                 {unknown.length > 0 && <span className="badge warn">未识别：{unknown.join("、")}</span>}
               </div>

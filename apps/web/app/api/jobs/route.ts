@@ -12,9 +12,9 @@ export async function GET(req: Request) {
   }
   try {
     const { jobs, mode } = await loadJobs();
-    // 只给要点预览（右侧详情用），完整正文留在官网；被驳回的绝不展示
+    // 只给要点预览（右侧详情用），完整正文留在官网；被驳回的、已下架的不展示
     const visible = jobs
-      .filter((j) => j.reviewStatus !== "rejected")
+      .filter((j) => j.reviewStatus !== "rejected" && j.status !== "closed")
       .map((j) => ({ ...j, description: j.description.slice(0, 600) }));
     return Response.json(
       { mode, jobs: visible },

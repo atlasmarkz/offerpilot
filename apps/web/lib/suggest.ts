@@ -1,3 +1,4 @@
+import { unsupportedFacts } from "@offerpilot/shared";
 import { resumeToText, type ResumeData } from "./resumeData";
 
 export const SUGGEST_SYSTEM_PROMPT = `你是资深的校招简历顾问。读下面这份应届生简历，给出具体、可执行的修改建议，输出 JSON 对象：
@@ -15,6 +16,8 @@ export interface SuggestItem {
   problem: string;
   suggestion: string;
   rewrite?: string;
+  /** 改写示例里出现、但原简历里找不到的数字和技术词（防编造检查），提醒用户核实 */
+  unverified?: string[];
 }
 export interface Suggestions {
   overall: string;
@@ -49,4 +52,19 @@ export function normalizeSuggestions(raw: unknown): Suggestions {
     ];
   });
   return { overall: s(o.overall, 200), items };
+}
+
+/**
+ * 防编造检查：改写示例里的数字和英文技术词必须能在原简历（或目标岗位）里找到，找不到的标出来。
+ * 提示词已经要求“绝不编造”，这里是代码层面的第二道关（借鉴 career-ops）。
+ */
+export function markUnverified(sug: Suggestions, sourceText: string): Suggestions {
+  return {
+    ...sug,
+    items: sug.items.map((it) => {
+      if (!it.rewrite) return it;
+      const missing = unsupportedFacts(it.rewrite, sourceText);
+      return missing.length ? { ...it, unverified: missing } : it;
+    }),
+  };
 }

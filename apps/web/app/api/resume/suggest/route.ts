@@ -1,7 +1,7 @@
 import { gate } from "../../../../lib/billing/gate";
 import { chat, LlmError, parseJsonLoose } from "../../../../lib/llmConfig";
 import { normalizeResume, resumeToText, withinSize } from "../../../../lib/resumeData";
-import { buildSuggestInput, normalizeSuggestions, SUGGEST_SYSTEM_PROMPT } from "../../../../lib/suggest";
+import { buildSuggestInput, markUnverified, normalizeSuggestions, SUGGEST_SYSTEM_PROMPT } from "../../../../lib/suggest";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       ],
       { json: true, timeoutMs: 110_000 },
     );
-    const suggestions = normalizeSuggestions(parseJsonLoose(content));
+    const suggestions = markUnverified(normalizeSuggestions(parseJsonLoose(content)), `${role ?? ""}\n${resumeToText(resume)}`);
     // 模型一条有效建议都没给，等于没服务：不收费
     if (suggestions.items.length === 0) throw new LlmError("这次没有生成有效的建议，已退还额度，请重试", 502);
     ok = true;

@@ -23,14 +23,15 @@ export function decide(passed: number, total: number, minRate = 0.8): boolean {
   return total > 0 && passed / total >= minRate;
 }
 
-interface Check {
+export interface Check {
   id: string;
   url: string;
   ok: boolean;
   why: string;
 }
 
-async function checkOne(job: Job, browser: Awaited<ReturnType<typeof chromium.launch>>): Promise<Check> {
+/** 打开岗位的投递 / 详情页，确认页面能打开且含岗位名。 */
+export async function checkOne(job: Pick<Job, "id" | "title" | "applyUrl">, browser: Awaited<ReturnType<typeof chromium.launch>>): Promise<Check> {
   const base = { id: job.id, url: job.applyUrl };
   const context = await browser.newContext({ locale: "zh-CN" });
   const page = await context.newPage();

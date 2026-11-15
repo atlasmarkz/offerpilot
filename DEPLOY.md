@@ -170,6 +170,18 @@ SQL Editor 运行 `supabase/migrations/0006_free_allowance.sql`（可重复运�
 
 姓名、手机、邮箱、证件号等个人隐私信息现在只存在用户自己的浏览器里，不上云（网页端的“个人隐私信息”面板，扩展本机读取）。SQL Editor 运行 `supabase/migrations/0008_scrub_private.sql`（可重复运行）：清掉此前已经上传的在线简历联系方式和云端画像里的姓名。服务端的保存接口也会主动丢弃这类字段。
 
+### 公司类型扩充（0011）
+
+SQL Editor 运行 `supabase/migrations/0011_company_types.sql`（可重复运行）。岗位的公司类型新增芯片半导体、汽车、硬件制造，不运行的话这几类岗位同步时会被数据库拒绝。
+
+### 平台投递记录（0009）
+
+SQL Editor 运行 `supabase/migrations/0009_applications.sql`（可重复运行，要在 0005 之后）。它会创建 `application` 表，存浏览器扩展在 Boss直聘等平台上的投递记录，供“投递看板”的投递总览统计；每人最多 5000 条。
+
+### 岗位每日更新与下架（0010）
+
+SQL Editor 运行 `supabase/migrations/0010_job_freshness.sql`（可重复运行）。它给 `job_listing` 加上数据源、发布日期、首次收录 / 最近确认在招时间、在招 / 下架状态。然后在 GitHub 仓库 Settings → Secrets and variables → Actions 里配置 `SUPABASE_URL`、`SUPABASE_SERVICE_KEY`，`crawl-and-sync` 工作流会每天北京时间凌晨 3 点自动采集、同步、复查。第一次可以在 Actions 页面手动点 “Run workflow” 试一次。
+
 ### 多份在线简历（0007）
 
 SQL Editor 运行 `supabase/migrations/0007_multi_resume.sql`（可重复运行，要在 0005 之后）。它会创建 `resume_doc` 表，把旧版每人一份的简历搬过去，并加上份数上限：免费版 1 份，付费订阅最多 3 份。上限只由平台控制，浏览器扩展本身免费、不设限：扩展只会收到平台同步过来的简历，有多份时在扩展弹窗里选用哪一份填表。想改份数，要同时改 `packages/shared/src/plans.ts` 的 `resumes` 和 0007 里的数字。

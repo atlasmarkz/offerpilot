@@ -2,7 +2,12 @@
 
 import type { Job, Profile } from "@offerpilot/shared";
 import { useState } from "react";
+import type { FitResult } from "../lib/fit";
 import { explainJob } from "../lib/match";
+import { dateLabel, sourceLabel } from "../lib/jobMeta";
+import { FitResultView } from "./FitPanel";
+import { TAILOR_HANDOFF_KEY } from "./resume/PasteJobFit";
+import { companyName } from "../lib/companies";
 import { CompanyTag } from "./JobList";
 
 interface Props {
@@ -13,10 +18,22 @@ interface Props {
   onClose: () => void;
   /** 登录后才有：把岗位加入投递看板，返回给用户看的结果文字 */
   onAddBoard?: () => Promise<string>;
+  /** AI 匹配度评估：返回结果，或给用户看的错误文字 */
+  onFit?: () => Promise<{ fit: FitResult; note?: string } | string>;
 }
 
-export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard }: Props) {
+export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard, onFit }: Props) {
   const [boardMsg, setBoardMsg] = useState<string>();
+  const [fit, setFit] = useState<{ jobId: string; fit?: FitResult; note?: string; error?: string }>();
+  const [fitting, setFitting] = useState(false);
+  const shownFit = fit?.jobId === job.id ? fit : undefined;
+  async function runFit() {
+    if (!onFit) return;
+    setFitting(true);
+    const r = await onFit();
+    setFit(typeof r === "string" ? { jobId: job.id, error: r } : { jobId: job.id, ...r });
+    setFitting(false);
+  }
   const checks = profile ? explainJob(profile, job) : [];
   const host = (() => {
     try {
@@ -49,6 +66,20 @@ export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard 
         )}
         <dt>投递入口</dt>
         <dd>{host || "官网"}</dd>
+        <dt>来源</dt>
+        <dd>
+          {sourceLabel(job).name}
+          {sourceLabel(job).host ? `（${sourceLabel(job).host}）` : ""}
+        </dd>
+        {dateLabel(job) && (
+          <>
+            <dt>日期</dt>
+            <dd>
+              {dateLabel(job)}
+              {job.lastSeenAt ? ` · ${job.lastSeenAt.slice(5, 10)} 确认仍在招` : ""}
+            </dd>
+          </>
+        )}
       </dl>
 
       <div className="sec-title">岗位要求 · 与你的情况对照</div>
@@ -73,6 +104,46 @@ export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard 
               仅显示开头部分，完整内容请到官网查看。
             </p>
           )}
+        </>
+      )}
+
+      {onFit && (
+        <>
+          <div className="sec-title">AI 匹配度评估</div>
+          {!shownFit?.fit && (
+            <p className="msg" style={{ marginTop: 0, color: "var(--muted)" }}>
+              拿你的在线简历和这个岗位逐条对照：打 1-5 分，列出匹配的证据、差距和简历该突出什么。4 分以上再投更划算。
+            </p>
+          )}
+          {shownFit?.fit && <FitResultView fit={shownFit.fit} note={shownFit.note} />}
+          {shownFit?.error && (
+            <p className="msg err" role="alert">
+              {shownFit.error}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+            <button className="btn ghost sm" onClick={() => void runFit()} disabled={fitting}>
+              {fitting ? "评估中…（约半分钟）" : shownFit?.fit ? "重新评估" : "评估匹配度"}
+            </button>
+            {job.description && (
+              <a
+                className="link-btn"
+                href="/resume"
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(
+                      TAILOR_HANDOFF_KEY,
+                      JSON.stringify({ title: job.title, company: companyName(job.companyId), description: job.description, fit: shownFit?.fit }),
+                    );
+                  } catch {
+                    /* 存不了就让用户自己粘贴 */
+                  }
+                }}
+              >
+                按这个岗位定制简历 →
+              </a>
+            )}
+          </div>
         </>
       )}
 

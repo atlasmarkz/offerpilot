@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Job, type CompanyType } from "@offerpilot/shared";
+import { Job, type CompanyType, type RunSource } from "@offerpilot/shared";
 
 /** 一条原始公告：数据源适配器的输出，尚未结构化。 */
 export interface RawPosting {
@@ -13,6 +13,11 @@ export interface RawPosting {
   companyType: CompanyType;
   /** 结构化数据源已经解析好的岗位；有的话跳过大模型抽取 */
   candidates?: unknown[];
+  /**
+   * 这次是否把这个数据源的岗位取全了（翻到最后一页、没被 maxJobs 截断、没中途出错）。
+   * 只有取全了，才能说“这次没出现的岗位可能已经下架”。不确定就不要设。
+   */
+  complete?: boolean;
 }
 
 /** 每个数据源（企业官网、聚合站等）实现一个适配器。 */
@@ -32,6 +37,8 @@ export interface PipelineResult {
   duplicates: number;
   /** 整个数据源抓取失败（网络超时、被 robots 禁止等） */
   sourceErrors: { source: string; error: string }[];
+  /** 每个成功的数据源这次取到了哪些岗位、是否取全：用来判断下架 */
+  sources: RunSource[];
 }
 
 export function jobId(applyUrl: string, title: string): string {
@@ -51,6 +58,8 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
   const accepted: Job[] = [];
   const invalid: PipelineResult["invalid"] = [];
   const sourceErrors: PipelineResult["sourceErrors"] = [];
+  const runs: RunSource[] = [];
+  const sourceOfRaw = new Map<RawPosting, string>();
   const seen = new Set<string>();
   let duplicates = 0;
 
@@ -63,7 +72,10 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
       sourceErrors.push({ source: source.id, error: (e as Error).message.split("\n")[0]! });
       continue;
     }
+    const run: RunSource = { id: source.id, complete: postings.length > 0 && postings.every((p) => p.complete === true), ids: [] };
+    runs.push(run);
     for (const raw of postings) {
+      sourceOfRaw.set(raw, source.id);
       let candidates: unknown[];
       try {
         candidates = raw.candidates ?? (await extract(raw));
@@ -78,6 +90,7 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
         const id = jobId(applyUrl, title);
         if (seen.has(id)) {
           duplicates++;
+          if (!run.ids.includes(id)) run.ids.push(id);
           continue;
         }
         // 身份与来源由管道强制覆盖；一律 pending，必须人工审核后才可见
@@ -89,9 +102,17 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
           applyUrl,
           sourceUrl: raw.sourceUrl,
           reviewStatus: "pending",
+          // 来源、在招状态、收录时间都由管道和存储决定，抽取结果里带了也不认
+          source: source.id,
+          status: "open",
+          firstSeenAt: undefined,
+          lastSeenAt: undefined,
+          closedAt: undefined,
+          missCount: 0,
         });
         if (parsed.success) {
           seen.add(id);
+          run.ids.push(id);
           accepted.push(parsed.data);
         } else {
           invalid.push({ raw, error: parsed.error.message });
@@ -99,5 +120,7 @@ export async function runPipeline(sources: SourceAdapter[], extract: Extractor):
       }
     }
   }
-  return { accepted, invalid, duplicates, sourceErrors };
+  // 有条目解析失败的数据源不算“取全”：失败的那些可能是在招岗位，不能据此判它们下架
+  for (const r of runs) if (invalid.some((x) => sourceOfRaw.get(x.raw) === r.id)) r.complete = false;
+  return { accepted, invalid, duplicates, sourceErrors, sources: runs };
 }

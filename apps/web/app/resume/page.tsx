@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { ResumeEditor } from "../../components/resume/ResumeEditor";
 import { ResumePreview } from "../../components/resume/ResumePreview";
 import { SuggestPanel } from "../../components/resume/SuggestPanel";
+import { PasteJobFit } from "../../components/resume/PasteJobFit";
+import type { FitResult } from "../../lib/fit";
+import type { TailorPlan } from "../../lib/tailor";
 import { TopBar } from "../../components/TopBar";
 import { PrivateInfoPanel } from "../../components/resume/PrivateInfoPanel";
 import { ResumeSwitcher } from "../../components/resume/ResumeSwitcher";
@@ -132,6 +135,45 @@ export default function ResumePage() {
     }
   }
 
+  /** 粘贴的岗位 + 当前简历 → 匹配度评估。 */
+  async function onFit(job: { title: string; company: string; description: string }): Promise<{ fit: FitResult; note?: string } | string> {
+    // 联系方式不发给模型
+    const payload: Record<string, unknown> = { resume: { ...resume, contact: emptyResume().contact }, job, consent: true };
+    attachModel((k, v) => (payload[k] = v));
+    try {
+      const res = await fetch("/api/jobs/fit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return String(data.error ?? "评估失败");
+      void session.refreshUsage();
+      return { fit: data.fit as FitResult, note: data.via === "user" ? "使用你自己的模型，未消耗额度。" : billing ? "已消耗 1 次额度。" : undefined };
+    } catch {
+      return "网络出错，请重试";
+    }
+  }
+
+  /** 岗位定制简历：拿到改动方案（不直接改简历）。 */
+  async function onTailor(job: { title: string; company: string; description: string }, focus: string[]): Promise<{ plan: TailorPlan; note?: string } | string> {
+    const payload: Record<string, unknown> = { resume: { ...resume, contact: emptyResume().contact }, job, focus, consent: true };
+    attachModel((k, v) => (payload[k] = v));
+    try {
+      const res = await fetch("/api/resume/tailor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return String(data.error ?? "生成失败");
+      void session.refreshUsage();
+      return { plan: data.plan as TailorPlan, note: data.via === "user" ? "使用你自己的模型，未消耗额度。" : billing ? "已消耗 1 次额度。" : undefined };
+    } catch {
+      return "网络出错，请重试";
+    }
+  }
+
+  // 另存为新简历：要登录（云端多份简历），且没到份数上限
+  const canSaveAs = !!session.user && docs.loaded && docs.docs.length < docs.max;
+  const saveAsBlocked = !session.user
+    ? "登录后可以另存为一份新简历，原简历保持不变"
+    : docs.loaded && docs.docs.length >= docs.max
+      ? `在线简历已达 ${docs.max} 份上限：删掉一份，或升级会员后可另存`
+      : undefined;
+
   const blank = isBlankResume(resume);
 
   if (!allowed) return <TopBar session={session} active="resume" />;
@@ -218,6 +260,17 @@ export default function ResumePage() {
         <div className="resume-grid">
           <div className="no-print">
             <SuggestPanel suggestions={suggestions} note={suggestNote} />
+            <PasteJobFit
+              consent={consent}
+              blank={blank}
+              costHint={costHint}
+              evaluate={onFit}
+              tailor={onTailor}
+              resume={resume}
+              onSaveAs={canSaveAs ? (data, name) => docs.create(name, data) : undefined}
+              saveAsBlocked={saveAsBlocked}
+              onApply={(data) => setResume({ ...data, contact: resume.contact })}
+            />
             <PrivateInfoPanel info={priv} onChange={updatePriv} />
             <ResumeEditor resume={resume} onChange={setResume} />
           </div>

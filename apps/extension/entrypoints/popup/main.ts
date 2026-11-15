@@ -213,6 +213,16 @@ demoBtn.addEventListener("click", async () => {
   resultBox.append(h, p);
 });
 
+// 招聘平台自动投递：设置和运行状态在单独的页面里（弹窗一关就没了，放不下长时间运行的东西）
+$("autoapply").addEventListener("click", () => void browser.tabs.create({ url: browser.runtime.getURL("/autoapply.html") }));
+void browser.storage.local.get(["runState", "autoApplyDaily"]).then(({ runState, autoApplyDaily }) => {
+  const st = runState as { running?: boolean } | undefined;
+  const d = autoApplyDaily as { date?: string; counts?: { boss?: number } } | undefined;
+  const todayStr = new Date().toLocaleDateString("sv-SE");
+  const n = d?.date === todayStr ? (d.counts?.boss ?? 0) : 0;
+  $("autoapply-st").textContent = st?.running ? `· 运行中，今日 ${n}` : n ? `· 今日已投 ${n}` : "";
+});
+
 fillBtn.addEventListener("click", () => void runFill());
 checkBtn.addEventListener("click", () => void runFill(true));
 

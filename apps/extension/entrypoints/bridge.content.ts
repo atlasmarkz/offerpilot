@@ -1,5 +1,6 @@
 import { Profile, normalizePrivateInfo } from "@offerpilot/shared";
 import { chooseResumeId, sanitizeResumes } from "../adapters/resumePick";
+import { readLog, since } from "../jobboards/applyLog";
 
 /**
  * 只在 OfferPilot 网页端运行：把网页里“同步到扩展”发来的画像和在线简历存进扩展本地存储。
@@ -47,6 +48,21 @@ export default defineContentScript({
           ok = false;
         }
         window.postMessage({ source: "offerpilot-ext", type: "resume-saved", ok }, location.origin);
+      } else if (data.type === "applications-request") {
+        // 投递看板要平台投递记录：只给这个网页账号上次同步之后的新记录
+        const account = typeof (data as { account?: unknown }).account === "string" ? (data as { account: string }).account.slice(0, 64) : "";
+        const { applyLog, applySynced } = await browser.storage.local.get(["applyLog", "applySynced"]);
+        const marks = (applySynced && typeof applySynced === "object" ? applySynced : {}) as Record<string, string>;
+        const items = account ? since(readLog(applyLog), marks[account]) : [];
+        window.postMessage({ source: "offerpilot-ext", type: "applications", items }, location.origin);
+      } else if (data.type === "applications-synced") {
+        const d = data as { account?: unknown; upTo?: unknown };
+        if (typeof d.account !== "string" || typeof d.upTo !== "string" || Number.isNaN(Date.parse(d.upTo))) return;
+        const { applySynced } = await browser.storage.local.get("applySynced");
+        const marks = (applySynced && typeof applySynced === "object" ? applySynced : {}) as Record<string, string>;
+        // 只往前推，不往回退
+        if (!marks[d.account] || d.upTo > marks[d.account]!) marks[d.account.slice(0, 64)] = d.upTo;
+        await browser.storage.local.set({ applySynced: marks });
       }
     });
     // 让网页知道扩展已安装

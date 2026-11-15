@@ -19,6 +19,13 @@ export function rowToJob(row: Record<string, unknown>): Job | undefined {
     applyUrl: row.apply_url,
     sourceUrl: row.source_url,
     reviewStatus: row.review_status,
+    source: row.source ?? undefined,
+    postedAt: typeof row.posted_at === "string" ? row.posted_at.slice(0, 10) : undefined,
+    firstSeenAt: row.first_seen_at ?? undefined,
+    lastSeenAt: row.last_seen_at ?? undefined,
+    status: row.status ?? "open",
+    closedAt: row.closed_at ?? undefined,
+    missCount: typeof row.miss_count === "number" ? row.miss_count : 0,
   });
   return p.success ? p.data : undefined;
 }
@@ -51,12 +58,19 @@ async function reason(res: Response): Promise<string> {
 async function fromSupabase(url: string, anonKey: string): Promise<Job[]> {
   const origin = supabaseOrigin(url);
   const jobs: Job[] = [];
+  // 只取在招的；数据库还没运行 0010 迁移（没有 status 列）时退回不过滤，避免整页没岗位
+  let onlyOpen = "&status=eq.open";
   for (let offset = 0; ; offset += PAGE) {
-    const res = await fetch(`${origin}/rest/v1/job_listing?select=*&order=id&limit=${PAGE}&offset=${offset}`, {
+    const res = await fetch(`${origin}/rest/v1/job_listing?select=*${onlyOpen}&order=id&limit=${PAGE}&offset=${offset}`, {
       headers: authHeaders(anonKey.trim()),
       // 不在 fetch 层缓存：空结果一旦被缓存，同步岗位后页面仍会空很久。缓存交给 /api/jobs 的响应头，空结果不缓存
       cache: "no-store",
     });
+    if (!res.ok && onlyOpen && res.status === 400 && offset === 0) {
+      onlyOpen = "";
+      offset -= PAGE;
+      continue;
+    }
     if (!res.ok) {
       const why = await reason(res);
       throw new Error(`数据库读取失败 HTTP ${res.status}${why ? `：${why}` : ""}`);

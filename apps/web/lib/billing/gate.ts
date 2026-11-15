@@ -3,7 +3,9 @@ import { jsonWith, resolveSession } from "../auth/session";
 import { authConfig } from "../auth/supabaseAuth";
 import { LlmError, userConfig, type LlmConfig } from "../llmConfig";
 import { clientIp, resumeLimiter } from "../rateLimit";
+import { PLAN_ORDER, PLANS, type PlanId } from "@offerpilot/shared";
 import { BillingError, billingEnabled, consume, refund, type Feature } from "./billing";
+import { loadPlan } from "./plan";
 
 /** 服务端自备的模型（MiniMax 等）：本机 .env / 部署平台环境变量。 */
 export function serverLlm(): LlmConfig | undefined {
@@ -44,6 +46,8 @@ export async function gate(
   req: Request,
   feature: Feature,
   field: (k: string) => string | undefined,
+  /** 会员功能：用站点模型时要求的最低等级（自带模型不受限） */
+  opts: { minPlan?: PlanId } = {},
 ): Promise<Granted | Response> {
   try {
     const mine = await userConfig(field);
@@ -66,6 +70,11 @@ export async function gate(
   if (!authConfig()) return fail("账号功能未启用", 503);
   const session = await resolveSession(req).catch(() => undefined);
   if (!session) return fail("使用站点提供的模型需要先登录", 401, "login_required");
+  if (opts.minPlan) {
+    const { plan } = await loadPlan(session.accessToken).catch(() => ({ plan: "free" as PlanId }));
+    if (PLAN_ORDER.indexOf(plan) < PLAN_ORDER.indexOf(opts.minPlan))
+      return fail(`这是 ${PLANS[opts.minPlan].name} 会员功能；也可以在“模型设置”里填写你自己的模型免费使用`, 403, "plan", session.setCookies);
+  }
   try {
     const charge = await consume(session.user.id, feature);
     let settled = false;

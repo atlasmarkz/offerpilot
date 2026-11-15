@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自动投递 · OfferPilot</title>
+    <style>
+      :root {
+        --bg: #f6f8fc; --surface: #ffffff; --text: #1c2129; --muted: #6b7482; --faint: #98a1b1; --line: #e3e7ef;
+        --brand: #3b5bdb; --brand-strong: #2f49b8; --brand-soft: #e9eeff;
+        --ok: #178a4c; --ok-soft: #e4f6ec; --warn: #a8570a; --warn-soft: #fff1dc; --err: #c0392b; --err-soft: #fde8e6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #12151d; --surface: #1b2029; --text: #e9edf5; --muted: #a3adc0; --faint: #7a8599; --line: #2c3344;
+          --brand: #7d98ff; --brand-strong: #a3b6ff; --brand-soft: #232d54;
+          --ok: #5fd593; --ok-soft: #14312a; --warn: #f2b765; --warn-soft: #3a2c14; --err: #ff8a7a; --err-soft: #3d1f1c;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; }
+      [hidden] { display: none !important; }
+      main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+      header img { width: 36px; height: 36px; border-radius: 9px; }
+      header h1 { margin: 0; font-size: 19px; }
+      header span { color: var(--muted); font-size: 12.5px; }
+      header a { margin-left: auto; color: var(--brand); font-size: 13px; text-decoration: none; }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; }
+      .card h2 { margin: 0 0 10px; font-size: 15px; }
+      .hint { color: var(--muted); font-size: 12.5px; margin: 4px 0 0; }
+      .risk { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+      .risk p { margin: 0 0 8px; font-size: 13px; }
+      label.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; cursor: pointer; }
+      label.check input { margin-top: 4px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+      .field { display: grid; gap: 4px; }
+      .field > span { font-size: 12.5px; color: var(--muted); font-weight: 550; }
+      .field.wide { grid-column: 1 / -1; }
+      input[type=text], input[type=number], input[type=url], textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; }
+      input:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--brand) 40%, transparent); border-color: var(--brand); }
+      textarea { resize: vertical; min-height: 64px; }
+      .platform { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+      .platform:first-of-type { border-top: 0; }
+      .platform b { min-width: 72px; }
+      .platform .st { color: var(--muted); font-size: 12.5px; flex: 1; }
+      button { font: inherit; cursor: pointer; border-radius: 10px; padding: 8px 16px; border: 1px solid var(--brand); background: transparent; color: var(--brand); font-weight: 600; }
+      button:hover:not(:disabled) { background: var(--brand-soft); }
+      button:disabled { opacity: .55; cursor: not-allowed; }
+      button.primary { background: var(--brand); color: #fff; }
+      button.primary:hover:not(:disabled) { background: var(--brand-strong); }
+      button.stop { border-color: var(--err); color: var(--err); }
+      .run { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .meter { flex: 1; min-width: 200px; }
+      .meter-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+      .meter-top b { color: var(--text); }
+      .bar { height: 8px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+      .bar i { display: block; height: 100%; background: var(--brand); }
+      .status { margin: 10px 0 0; font-size: 13px; padding: 8px 10px; border-radius: 9px; background: var(--bg); }
+      .status.on { background: var(--ok-soft); color: var(--ok); }
+      .status.off { background: var(--warn-soft); color: var(--warn); }
+      ol.events { list-style: none; margin: 10px 0 0; padding: 0; max-height: 300px; overflow: auto; font-size: 12.5px; display: grid; gap: 2px; }
+      ol.events li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; color: var(--muted); }
+      ol.events li time { color: var(--faint); font-variant-numeric: tabular-nums; }
+      ol.events li.sent { color: var(--ok); }
+      .saved { color: var(--ok); font-size: 12.5px; margin-left: 8px; }
+      @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icon/48.png" alt="" />
+        <div>
+          <h1>招聘平台自动投递</h1>
+          <span>在你已登录的 Boss直聘页面里自动筛选、自动打招呼</span>
+        </div>
+        <a id="board" href="#" target="_blank" rel="noreferrer">查看投递总览 ↗</a>
+      </header>
+
+      <section class="card risk" aria-label="风险提示">
+        <h2>开启前请先了解</h2>
+        <p>自动投递很可能违反 Boss直聘等平台的用户协议，可能导致限流、降权，甚至封号。扩展已经内置了每日上限、随机间隔和熔断，但不能保证账号安全。</p>
+        <p>遇到验证码、安全验证、平台提示次数用完时，会立即停止并交给你处理，不会尝试绕过。投递记录只保存在本机，打开网站的投递看板时同步到你的账号。</p>
+        <label class="check"><input type="checkbox" id="consent" /> 我已了解上述风险，自愿开启自动投递</label>
+      </section>
+
+      <section class="card" aria-label="平台">
+        <h2>平台</h2>
+        <div class="platform">
+          <b>Boss直聘</b>
+          <span class="st" id="boss-st">未开启</span>
+          <button id="boss-toggle">开启</button>
+        </div>
+        <div class="platform">
+          <b>猎聘</b>
+          <span class="st">下一期支持</span>
+          <button disabled>开启</button>
+        </div>
+        <p class="hint">开启时浏览器会请求访问该平台网站的权限；只在这个平台的页面上运行，关闭后立即撤销。</p>
+      </section>
+
+      <section class="card" aria-label="运行">
+        <h2>运行</h2>
+        <div class="run">
+          <div class="meter">
+            <div class="meter-top"><span>今天 Boss直聘 已投</span><b id="today">0 / 60</b></div>
+            <div class="bar"><i id="today-bar" style="width:0%"></i></div>
+          </div>
+          <button class="primary" id="start">开始自动投递</button>
+          <button class="stop" id="stop" hidden>停止</button>
+        </div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="dryRun" /> 试运行：只筛选、只看详情，不打招呼（建议第一次先开着，看看会投哪些）</label>
+        <p class="status" id="status">未运行</p>
+        <ol class="events" id="events" aria-label="最近动态"></ol>
+      </section>
+
+      <form class="card" id="settings" aria-label="设置">
+        <h2>筛选与节奏 <span class="saved" id="saved" hidden>已保存</span></h2>
+        <div class="grid">
+          <label class="field wide"><span>搜索页链接（先在 Boss 上搜好关键词、城市、筛选条件，把地址栏链接粘过来）</span>
+            <input type="url" id="searchUrl" placeholder="https://www.zhipin.com/web/geek/jobs?query=前端实习&city=101010100" /></label>
+          <label class="field"><span>岗位名必须包含其一（逗号分隔，留空不限）</span><input type="text" id="titleInclude" placeholder="前端, Web, 实习" /></label>
+          <label class="field"><span>出现就跳过（岗位名或描述）</span><input type="text" id="exclude" placeholder="销售, 客服, 驻场" /></label>
+          <label class="field"><span>公司黑名单</span><input type="text" id="companyBlacklist" placeholder="公司名关键词" /></label>
+          <label class="field"><span>招聘者黑名单（招聘者职位含其一就跳过）</span><input type="text" id="recruiterBlacklist" placeholder="猎头, 人事外包" /></label>
+          <label class="field"><span>城市（留空不限）</span><input type="text" id="cities" placeholder="北京, 上海" /></label>
+          <label class="field"><span>月薪下限（K，0 不限）</span><input type="number" id="monthlyMinK" min="0" max="500" /></label>
+          <label class="field"><span>实习日薪下限（元，0 不限）</span><input type="number" id="dailyMin" min="0" max="5000" /></label>
+          <label class="check"><input type="checkbox" id="skipInactiveHr" /> 跳过很久没活跃的 HR</label>
+          <label class="check"><input type="checkbox" id="skipOutsourcing" /> 跳过疑似外包 / 派遣</label>
+          <label class="field"><span>每天最多投（1–150）</span><input type="number" id="dailyCap" min="1" max="150" /></label>
+          <label class="field"><span>间隔（秒，最少 15）</span>
+            <span style="display:flex;gap:6px;align-items:center"><input type="number" id="minIntervalSec" min="15" max="600" /> 到 <input type="number" id="maxIntervalSec" min="15" max="900" /></span></label>
+          <label class="field wide"><span>招呼语模板（可用 {公司} {岗位} {学校} {专业} {届别} {技能}；缺值的句子会自动去掉，不会编造）</span>
+            <textarea id="greeting" maxlength="300"></textarea>
+            <small class="hint">Boss直聘第一期使用你在 Boss App“设置 → 打招呼语”里设置的内容，这里的模板下一期生效。</small></label>
+        </div>
+        <p style="margin:14px 0 0"><button type="submit" class="primary">保存设置</button></p>
+      </form>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

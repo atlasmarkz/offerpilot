@@ -20,6 +20,16 @@ describe("rowToJob", () => {
   it("maps a database row", () => {
     expect(rowToJob(row)).toMatchObject({ companyId: "bilibili", city: ["上海"], reviewStatus: "approved" });
   });
+  it("maps freshness columns, and treats rows from before the 0010 migration as open", () => {
+    expect(rowToJob({ ...row, source: "bilibili-campus", posted_at: "2026-11-02", first_seen_at: "2026-11-03T19:00:00+00:00", last_seen_at: "2026-11-14T19:00:00+00:00", status: "closed", miss_count: 2 })).toMatchObject({
+      source: "bilibili-campus",
+      postedAt: "2026-11-02",
+      firstSeenAt: "2026-11-03T19:00:00+00:00",
+      status: "closed",
+      missCount: 2,
+    });
+    expect(rowToJob(row)).toMatchObject({ status: "open", missCount: 0, postedAt: undefined });
+  });
   it("drops malformed rows instead of throwing", () => {
     expect(rowToJob({ ...row, kind: "weird" })).toBeUndefined();
     expect(rowToJob({})).toBeUndefined();

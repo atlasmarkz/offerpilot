@@ -58,3 +58,22 @@ describe("facets", () => {
     ]);
   });
 });
+
+describe("applyFilter by date", () => {
+  const now = new Date("2026-11-15T04:00:00Z"); // 北京时间 11-15 中午
+  const dated = [
+    m("old", { postedAt: "2026-10-01" }),
+    m("new", { postedAt: "2026-11-14" }),
+    m("seen", { firstSeenAt: "2026-11-12T19:00:00Z" }), // 北京时间 11-13 收录，没有发布日期
+    m("none"),
+  ];
+
+  it("keeps only jobs posted (or first seen) within N days; undated jobs drop out", () => {
+    expect(applyFilter(dated, { ...EMPTY_FILTER, withinDays: 3 }, none, now).map((x) => x.job.id)).toEqual(["new", "seen"]);
+    expect(applyFilter(dated, { ...EMPTY_FILTER, withinDays: 0 }, none, now)).toHaveLength(4);
+  });
+
+  it("sorts newest first, undated last", () => {
+    expect(applyFilter(dated, { ...EMPTY_FILTER, sort: "new" }, none, now).map((x) => x.job.id)).toEqual(["new", "seen", "old", "none"]);
+  });
+});

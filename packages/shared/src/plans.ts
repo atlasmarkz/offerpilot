@@ -74,7 +74,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     features: [
       { text: "包含基础版全部权益" },
       { text: "每月 100 次 AI" },
-      { text: "针对岗位定制简历（先出草稿再自检，不编造）", soon: true },
+      { text: "针对岗位定制简历（先出草稿再自检，不编造）" },
       { text: "简答题 / 自我介绍草稿", soon: true },
       { text: "岗位提醒（最多 20 条订阅）", soon: true },
       { text: "投递看板（最多 300 条）" },

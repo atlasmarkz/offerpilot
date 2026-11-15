@@ -37,7 +37,8 @@ export function janeStreetSource(cfg: SourceConfig): SourceAdapter {
     id: cfg.id,
     async fetchPostings(): Promise<RawPosting[]> {
       const jobs = JSON.parse(await politeFetch(cfg.url)) as JaneStreetJob[];
-      const candidates = jobs.filter(isCampus).slice(0, cfg.maxJobs).map(mapJaneStreetJob);
+      const campus = jobs.filter(isCampus);
+      const candidates = campus.slice(0, cfg.maxJobs).map(mapJaneStreetJob);
       if (candidates.length === 0) throw new Error("没有应届/实习岗位（接口结构可能变了）");
       return [
         {
@@ -48,6 +49,8 @@ export function janeStreetSource(cfg: SourceConfig): SourceAdapter {
           companyId: cfg.companyId,
           companyType: cfg.companyType,
           candidates,
+          // 官方接口一次给全部岗位：没被 maxJobs 截断就是取全了
+          complete: campus.length <= cfg.maxJobs,
         },
       ];
     },

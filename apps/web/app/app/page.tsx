@@ -17,7 +17,9 @@ import type { ResumeDraft } from "../../lib/resume";
 import { companyName } from "../../lib/companies";
 import { syncResumesFromCloud } from "../../lib/extensionSync";
 import { loadPrivate, postPrivateToExtension } from "../../lib/privateInfo";
-import { draftToResume, RESUME_KEY } from "../../lib/resumeLocal";
+import { draftToResume, isBlankResume, RESUME_KEY } from "../../lib/resumeLocal";
+import type { FitResult } from "../../lib/fit";
+import { normalizeResume, type ResumeData } from "../../lib/resumeData";
 import { flip, load, remove, save } from "../../lib/storage";
 
 const PROFILE_KEY = "offerpilot.profile.v1";
@@ -144,7 +146,7 @@ export default function Home() {
   const cityFacets = useMemo(() => facets(result.matches, (m) => m.job.city), [result.matches]);
   const filtered = useMemo(() => applyFilter(result.matches, filter, selectedSet), [result.matches, filter, selectedSet]);
   const filterActive =
-    filter.query.trim() !== "" || filter.companies.length > 0 || filter.cities.length > 0 || filter.onlySelected;
+    filter.query.trim() !== "" || filter.companies.length > 0 || filter.cities.length > 0 || filter.onlySelected || filter.withinDays > 0;
   const rejectedTotal = Object.values(result.rejected).reduce((a, b) => a + b, 0);
 
   const byId = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
@@ -216,6 +218,59 @@ export default function Home() {
     });
     const d = await res.json().catch(() => ({}));
     return res.ok ? "已加入投递看板" : String(d.error ?? "添加失败");
+  }
+
+  /** 当前用的在线简历：登录了取云端当前那份，否则取本机的。 */
+  async function currentResume(): Promise<ResumeData> {
+    if (session.user) {
+      try {
+        const res = await fetch("/api/me/resumes");
+        if (res.ok) {
+          const { items } = (await res.json()) as { items: { id: string; data: unknown }[] };
+          const activeId = load<string>("offerpilot.resume.active.v1", "");
+          const pick = items.find((x) => x.id === activeId) ?? items[0];
+          if (pick) return normalizeResume(pick.data);
+        }
+      } catch {
+        /* 退回本机 */
+      }
+    }
+    return normalizeResume(load<unknown>(RESUME_KEY, null));
+  }
+
+  /** AI 匹配度评估：岗位库里的岗位 + 当前在线简历。 */
+  async function fitJob(job: Job): Promise<{ fit: FitResult; note?: string } | string> {
+    if (!consent) return "请先在左侧“上传简历”处勾选同意把简历内容发送给大模型服务";
+    const resume = await currentResume();
+    if (isBlankResume(resume)) return "还没有在线简历：先在左侧上传简历，或到“简历工作台”填写";
+    const r = job.requirements;
+    const requirements = [
+      r.minDegree && `学历：${{ bachelor: "本科", master: "硕士", phd: "博士" }[r.minDegree]}及以上`,
+      r.graduationYears.length && `届别：${r.graduationYears.join("、")}`,
+      r.majors.length && `专业：${r.majors.join("、")}`,
+      r.schoolTags.length && `院校：${r.schoolTags.join("、")}`,
+    ]
+      .filter(Boolean)
+      .join("；");
+    const payload: Record<string, unknown> = {
+      consent: true,
+      resume,
+      job: { title: job.title, company: companyName(job.companyId), description: job.description.slice(0, 8000), requirements },
+    };
+    if (llm.baseUrl.trim() && llm.apiKey.trim() && llm.model.trim()) {
+      payload.llmBaseUrl = llm.baseUrl;
+      payload.llmApiKey = llm.apiKey;
+      payload.llmModel = llm.model;
+    }
+    try {
+      const res = await fetch("/api/jobs/fit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return String(data.error ?? "评估失败");
+      void session.refreshUsage();
+      return { fit: data.fit as FitResult, note: data.via === "user" ? "使用你自己的模型，未消耗额度。" : undefined };
+    } catch {
+      return "网络出错，请重试";
+    }
   }
 
   function syncToExtension() {
@@ -377,6 +432,7 @@ export default function Home() {
                 picked={selectedSet.has(active.id)}
                 onToggle={() => toggle(active.id)}
                 onAddBoard={session.user ? () => addToBoard(active) : undefined}
+                onFit={() => fitJob(active)}
                 onClose={() => setActiveId(undefined)}
               />
             ) : (

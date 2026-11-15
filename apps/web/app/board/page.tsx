@@ -1,10 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { ApplyRecord, type ApplyStatus } from "@offerpilot/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApplyOverview, type SyncState } from "../../components/ApplyOverview";
 import { BoardDashboard } from "../../components/BoardDashboard";
 import { TopBar } from "../../components/TopBar";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
+import { UPLOAD_BATCH, type Application } from "../../lib/applications";
 import { BOARD_LABEL, BOARD_STATUSES, type BoardItem, type BoardStatus } from "../../lib/board";
+import { markExtensionApplicationsSynced, requestExtensionApplications } from "../../lib/extensionSync";
 
 interface Draft {
   id?: string;
@@ -40,9 +44,68 @@ export default function BoardPage() {
     }
   }, []);
 
+  const [apps, setApps] = useState<Application[]>([]);
+  const [sync, setSync] = useState<SyncState>({ kind: "idle" });
+
+  const loadApps = useCallback(async () => {
+    const res = await fetch("/api/me/applications");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? "读取平台投递记录失败");
+    setApps(data.items);
+  }, []);
+
+  /** 把扩展本机记录的平台投递（只要上次之后的新记录）分批传到云端，再刷新列表。 */
+  const syncFromExtension = useCallback(
+    async (quiet: boolean) => {
+      const account = session.user?.id;
+      if (!account) return;
+      setSync({ kind: "syncing" });
+      try {
+        const raw = await requestExtensionApplications(account);
+        if (raw === null) {
+          await loadApps();
+          return setSync({ kind: "none", text: quiet ? "" : "没有检测到浏览器扩展" });
+        }
+        const items = raw.flatMap((r) => {
+          const p = ApplyRecord.safeParse(r);
+          return p.success ? [p.data] : [];
+        });
+        for (let i = 0; i < items.length; i += UPLOAD_BATCH) {
+          const res = await fetch("/api/me/applications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: items.slice(i, i + UPLOAD_BATCH) }),
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "同步失败");
+        }
+        if (items.length) markExtensionApplicationsSynced(account, items.map((x) => x.applied_at).sort().at(-1)!);
+        await loadApps();
+        setSync({ kind: "done", text: items.length ? `已同步 ${items.length} 条新记录` : quiet ? "" : "没有新记录" });
+      } catch (e) {
+        setSync({ kind: "error", text: (e as Error).message });
+      }
+    },
+    [session.user?.id, loadApps],
+  );
+
+  const autoSynced = useRef(false);
   useEffect(() => {
-    if (allowed && session.user) void load();
-  }, [allowed, session.user, load]);
+    if (!allowed || !session.user) return;
+    void load();
+    if (!autoSynced.current) {
+      autoSynced.current = true;
+      void syncFromExtension(true);
+    }
+  }, [allowed, session.user, load, syncFromExtension]);
+
+  async function setAppStatus(a: Application, status: ApplyStatus) {
+    setApps((l) => l.map((x) => (x.id === a.id ? { ...x, status } : x)));
+    const { ok, data } = await call(`/api/me/applications/${a.id}`, "PATCH", { status });
+    if (!ok) {
+      setApps((l) => l.map((x) => (x.id === a.id ? a : x)));
+      setError(String(data.error ?? "修改失败"));
+    }
+  }
 
   async function call(url: string, method: string, body?: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -121,6 +184,10 @@ export default function BoardPage() {
           </div>
         ) : (
           <>
+            <ApplyOverview board={items} apps={apps} sync={sync} onSync={() => void syncFromExtension(false)} onStatus={(a, s) => void setAppStatus(a, s)} />
+            <div className="list-head" style={{ marginBottom: 10 }}>
+              <h2 style={{ fontSize: 15, margin: 0 }}>官网投递</h2>
+            </div>
             <BoardDashboard items={items} usage={session.usage} />
             <div className="list-head" style={{ marginBottom: 10 }}>
               <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>

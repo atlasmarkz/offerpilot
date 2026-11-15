@@ -12,7 +12,7 @@
   {
     "id": "nio-campus",
     "companyId": "nio",
-    "companyType": "internet",
+    "companyType": "auto",
     "url": "https://nio.jobs.feishu.cn/campus",
     "platform": "feishu",
     "detailUrlTemplate": "https://nio.jobs.feishu.cn/campus/position/{id}/detail",
@@ -21,18 +21,23 @@
   {
     "id": "li-campus",
     "companyId": "lixiang",
-    "companyType": "internet",
-    "url": "https://li.jobs.feishu.cn",
+    "companyType": "auto",
+    "url": "https://li.jobs.feishu.cn/index",
     "platform": "feishu",
-    "detailUrlTemplate": "https://li.jobs.feishu.cn/position/{id}/detail",
+    "detailUrlTemplate": "https://li.jobs.feishu.cn/index/position/{id}/detail",
     "mode": "browser",
     "enabled": false,
-    "note": "理想的飞书招聘入口只有社招（771 条），未找到校招入口；找到后改 url 再启用"
+    "note": "理想的飞书招聘入口 791 条全是社招，按招聘类型过滤后 0 条；校招入口待找",
+    "recruitTypes": [
+      "校招",
+      "实习",
+      "校园"
+    ]
   },
   {
     "id": "xiaomi-campus",
     "companyId": "xiaomi",
-    "companyType": "internet",
+    "companyType": "hardware",
     "url": "https://xiaomi.jobs.f.mioffice.cn/campus",
     "platform": "feishu",
     "detailUrlTemplate": "https://xiaomi.jobs.f.mioffice.cn/campus/position/{id}/detail",
@@ -197,5 +202,245 @@
     "platform": "tonghuashun",
     "mode": "browser",
     "maxJobs": 300
+  },
+  {
+    "id": "xpeng-campus",
+    "companyId": "xpeng",
+    "companyType": "auto",
+    "url": "https://xiaopeng.jobs.feishu.cn/campus/position/list",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://xiaopeng.jobs.feishu.cn/campus/position/{id}/detail",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "momenta-campus",
+    "companyId": "momenta",
+    "companyType": "auto",
+    "url": "https://momenta.jobs.feishu.cn/campus",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://momenta.jobs.feishu.cn/campus/position/{id}/detail",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "bambulab-campus",
+    "companyId": "bambulab",
+    "companyType": "hardware",
+    "url": "https://bambulab.jobs.feishu.cn/campus",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://bambulab.jobs.feishu.cn/campus/position/{id}/detail",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "dewu-campus",
+    "companyId": "dewu",
+    "companyType": "internet",
+    "url": "https://campus.dewu.com/578078/position/list",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://campus.dewu.com/578078/position/{id}/detail",
+    "recruitTypes": [],
+    "mode": "browser",
+    "maxJobs": 300,
+    "note": "得物校招站是飞书招聘的白标（campus.dewu.com）；poizon.jobs.feishu.cn 是社招"
+  },
+  {
+    "id": "sensetime-campus",
+    "companyId": "sensetime",
+    "companyType": "internet",
+    "url": "https://sensetime.jobs.feishu.cn/index",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://sensetime.jobs.feishu.cn/index/position/{id}/detail",
+    "recruitTypes": [
+      "校招",
+      "实习",
+      "校园"
+    ],
+    "mode": "browser",
+    "maxJobs": 300,
+    "note": "飞书入口只有社招，校招入口待找",
+    "enabled": false
+  },
+  {
+    "id": "mthreads-campus",
+    "companyId": "mthreads",
+    "companyType": "chip",
+    "url": "https://mthreads.jobs.feishu.cn/index",
+    "platform": "feishu",
+    "detailUrlTemplate": "https://mthreads.jobs.feishu.cn/index/position/{id}/detail",
+    "recruitTypes": [
+      "校招",
+      "实习",
+      "校园"
+    ],
+    "mode": "browser",
+    "maxJobs": 300,
+    "note": "飞书入口没有校招 / 实习；校招在北森门户 mthreads-beisen",
+    "enabled": false
+  },
+  {
+    "id": "alibaba-campus",
+    "companyId": "alibaba",
+    "companyType": "internet",
+    "url": "https://campus-talent.alibaba.com/campus/position",
+    "platform": "alibaba",
+    "mode": "browser",
+    "maxJobs": 600,
+    "note": "阿里集团校招统一入口（淘天、阿里云等）；实习是另一个批次，暂未接"
+  },
+  {
+    "id": "pdd-campus",
+    "companyId": "pdd",
+    "companyType": "internet",
+    "url": "https://careers.pddglobalhr.com/campus/grad",
+    "platform": "pdd",
+    "mode": "browser",
+    "maxJobs": 300
+  },
+  {
+    "id": "pdd-intern",
+    "companyId": "pdd",
+    "companyType": "internet",
+    "url": "https://careers.pddglobalhr.com/campus/intern",
+    "platform": "pdd",
+    "defaultKind": "intern",
+    "mode": "browser",
+    "maxJobs": 300,
+    "enabled": false,
+    "note": "实习入口地址待确认（/campus/intern 没有岗位接口）"
+  },
+  {
+    "id": "oppo-campus",
+    "companyId": "oppo",
+    "companyType": "hardware",
+    "url": "https://careers.oppo.com/university/oppo/campus/post",
+    "platform": "oppo",
+    "mode": "browser",
+    "maxJobs": 400
+  },
+  {
+    "id": "ymtc-campus",
+    "companyId": "ymtc",
+    "companyType": "chip",
+    "url": "https://ymtc.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "cxmt-campus",
+    "companyId": "cxmt",
+    "companyType": "chip",
+    "url": "https://cxmt.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "mthreads-beisen",
+    "companyId": "mthreads",
+    "companyType": "chip",
+    "url": "https://mthreads.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600,
+    "note": "摩尔线程的校招在北森门户；飞书那个入口是社招"
+  },
+  {
+    "id": "leapmotor-campus",
+    "companyId": "leapmotor",
+    "companyType": "auto",
+    "url": "https://leapmotor.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "changan-campus",
+    "companyId": "changan",
+    "companyType": "auto",
+    "url": "https://changan.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "iflytek-campus",
+    "companyId": "iflytek",
+    "companyType": "internet",
+    "url": "https://iflytek.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "sany-campus",
+    "companyId": "sany",
+    "companyType": "hardware",
+    "url": "https://sany.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600
+  },
+  {
+    "id": "vivo-campus",
+    "companyId": "vivo",
+    "companyType": "hardware",
+    "url": "https://hr-campus.vivo.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600,
+    "note": "vivo 校招是自有域名的北森门户"
+  },
+  {
+    "id": "chinalife-campus",
+    "companyId": "chinalife",
+    "companyType": "soe",
+    "url": "https://chinalife.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 2500,
+    "note": "中国人寿：总部和各省分公司的校招都在这里，量大"
+  },
+  {
+    "id": "picc-campus",
+    "companyId": "picc",
+    "companyType": "soe",
+    "url": "https://picc.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 2500,
+    "note": "中国人保：人保财险、人保寿险等子公司和各省分公司"
+  },
+  {
+    "id": "cnnc-campus",
+    "companyId": "cnnc",
+    "companyType": "soe",
+    "url": "https://cnnc.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 2000,
+    "note": "中核集团：各成员单位"
+  },
+  {
+    "id": "cmhk-campus",
+    "companyId": "cmhk",
+    "companyType": "soe",
+    "url": "https://cmhk.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600,
+    "note": "招商局集团"
+  },
+  {
+    "id": "cicc-intern",
+    "companyId": "cicc",
+    "companyType": "finance",
+    "url": "https://cicc.zhiye.com/",
+    "platform": "beisen",
+    "mode": "http",
+    "maxJobs": 600,
+    "note": "中金公司：目前开放的是“项目实习”"
   }
 ]

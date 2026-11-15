@@ -12,7 +12,8 @@
     "discover": "tsx src/discover.ts",
     "sync": "tsx src/sync.ts",
     "verify": "tsx src/verifyLinks.ts",
-    "billing": "tsx src/billingAdmin.ts"
+    "billing": "tsx src/billingAdmin.ts",
+    "recheck": "tsx src/recheck.ts"
   },
   "dependencies": {
     "@offerpilot/shared": "*",

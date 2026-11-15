@@ -1,7 +1,7 @@
 import { ExperienceAtom, Profile, type CompanyType } from "@offerpilot/shared";
 import { split } from "./storage";
 
-export const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企" };
+export const TYPE_LABEL: Record<CompanyType, string> = { internet: "互联网", finance: "金融", soe: "国央企", chip: "芯片半导体", auto: "汽车", hardware: "硬件制造" };
 export const SCHOOL_TAGS = ["985", "211", "双一流"];
 
 export interface Form {

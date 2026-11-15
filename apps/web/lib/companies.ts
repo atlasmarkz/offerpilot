@@ -14,6 +14,32 @@ export const COMPANY_NAMES: Record<string, string> = {
   minimax: "MiniMax",
   tonghuashun: "同花顺",
   janestreet: "Jane Street",
+  alibaba: "阿里巴巴",
+  pdd: "拼多多",
+  oppo: "OPPO",
+  dewu: "得物",
+  sensetime: "商汤科技",
+  iflytek: "科大讯飞",
+  // 车企
+  lixiang: "理想汽车",
+  xpeng: "小鹏汽车",
+  momenta: "Momenta",
+  leapmotor: "零跑汽车",
+  changan: "长安汽车",
+  // 硬件制造
+  bambulab: "拓竹科技",
+  vivo: "vivo",
+  sany: "三一集团",
+  // 芯片半导体
+  mthreads: "摩尔线程",
+  ymtc: "长江存储",
+  cxmt: "长鑫存储",
+  // 国央企、金融
+  chinalife: "中国人寿",
+  picc: "中国人保",
+  cnnc: "中核集团",
+  cmhk: "招商局集团",
+  cicc: "中金公司",
 };
 
 export const companyName = (id: string) => COMPANY_NAMES[id] ?? id;

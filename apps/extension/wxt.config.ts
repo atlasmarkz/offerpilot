@@ -7,6 +7,8 @@ export default defineConfig({
     description: "自动识别飞书、Moka、北森等校招投递页并一键填入你的信息，缺什么提示你补。只填不提交，验证码由你自己完成。",
     // storage：保存你同步过来的画像；activeTab + scripting：仅在你点击图标时，向当前这一个标签页注入填表脚本
     permissions: ["storage", "activeTab", "scripting"],
+    // 招聘平台自动投递：用户在“自动投递”页开启某个平台时才申请对应网站的权限，安装时不申请
+    optional_host_permissions: ["https://www.zhipin.com/*", "https://www.liepin.com/*", "https://c.liepin.com/*"],
     minimum_chrome_version: "109",
     action: { default_title: "填写当前页面" },
   },

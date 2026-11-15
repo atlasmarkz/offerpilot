@@ -3,8 +3,8 @@ import { PLANS, planOf, type PlanId } from "@offerpilot/shared";
 import { authHeaders, supabaseOrigin } from "../jobsSource";
 
 /** 会消耗额度的功能。每次调用扣多少次，集中放在这里，调价只改这一处。 */
-export type Feature = "resume_parse" | "resume_suggest" | "resume_tailor";
-export const UNIT_COST: Record<Feature, number> = { resume_parse: 1, resume_suggest: 1, resume_tailor: 1 };
+export type Feature = "resume_parse" | "resume_suggest" | "resume_tailor" | "job_fit";
+export const UNIT_COST: Record<Feature, number> = { resume_parse: 1, resume_suggest: 1, resume_tailor: 1, job_fit: 1 };
 
 /** 默认订阅额度取 Plus（每月 100 次）；各等级的额度见 packages/shared 的 PLANS。 */
 export const PRO_QUOTA = PLANS.plus.monthlyQuota;

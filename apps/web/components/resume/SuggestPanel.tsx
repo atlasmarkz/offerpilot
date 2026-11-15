@@ -34,6 +34,11 @@ export function SuggestPanel({ suggestions, note }: Props) {
                 {it.rewrite}
               </div>
             )}
+            {it.unverified?.length ? (
+              <div className="sug-unverified" role="note">
+                ⚠ 改写里有你简历中没有的内容：<b>{it.unverified.join("、")}</b>。如果不是你的真实经历，请删掉或换成真实数据。
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -3,7 +3,8 @@ import { z } from "zod";
 export const DegreeLevel = z.enum(["bachelor", "master", "phd"]);
 export type DegreeLevel = z.infer<typeof DegreeLevel>;
 
-export const CompanyType = z.enum(["internet", "finance", "soe"]);
+/** 公司类型：互联网、金融、国央企、芯片半导体、汽车（含新能源、自动驾驶）、硬件与制造 */
+export const CompanyType = z.enum(["internet", "finance", "soe", "chip", "auto", "hardware"]);
 export type CompanyType = z.infer<typeof CompanyType>;
 
 export const JobKind = z.enum(["fulltime", "intern"]);
@@ -66,5 +67,18 @@ export const Job = z.object({
   sourceUrl: z.string().url(),
   /** 自动抽取的岗位必须人工审核后才能展示 */
   reviewStatus: z.enum(["pending", "approved", "rejected"]).default("pending"),
+  /** 数据源 id（采集器 sources.json 里的 id，如 meituan-campus），判断下架时按数据源分组 */
+  source: z.string().optional(),
+  /** 官网上的发布日期 YYYY-MM-DD；官网没给就没有 */
+  postedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** 第一次被采集到的时间（ISO）：官网没给发布日期时，用它当“收录日期” */
+  firstSeenAt: z.string().optional(),
+  /** 最近一次在官网上确认还在招的时间（ISO） */
+  lastSeenAt: z.string().optional(),
+  /** open 在招；closed 已下架（连续两次完整采集都找不到，或复查详情页已失效） */
+  status: z.enum(["open", "closed"]).default("open"),
+  closedAt: z.string().optional(),
+  /** 连续几次完整采集 / 复查没找到；再次找到时清零 */
+  missCount: z.number().int().min(0).default(0),
 });
 export type Job = z.infer<typeof Job>;

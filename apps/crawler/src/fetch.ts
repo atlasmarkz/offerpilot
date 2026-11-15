@@ -1,4 +1,4 @@
-const USER_AGENT = "OfferPilotBot/0.1 (personal project; respects robots.txt)";
+export const USER_AGENT = "OfferPilotBot/0.1 (personal project; respects robots.txt)";
 
 export interface FetchOptions {
   /** 同一主机两次请求的最小间隔（毫秒） */

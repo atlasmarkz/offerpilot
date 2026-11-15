@@ -19,6 +19,7 @@ export function hardFilter(profile: Profile, job: Job, today = new Date()): Hard
   const req = job.requirements;
 
   if (job.reviewStatus !== "approved") reasons.push("岗位尚未审核");
+  if (job.status === "closed") reasons.push("岗位已下架");
 
   if (job.deadline && new Date(job.deadline) < today) reasons.push("已过截止日期");
 

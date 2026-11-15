@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { companyHue, companyName } from "../lib/companies";
 import type { Facet, ListFilter } from "../lib/filter";
-import { EMPTY_FILTER } from "../lib/filter";
+import { EMPTY_FILTER, WITHIN_OPTIONS } from "../lib/filter";
 import { flip } from "../lib/storage";
 
 interface Props {
@@ -77,6 +77,32 @@ export function FilterBar({ filter, setFilter, companies, cities, active }: Prop
                 {allCities ? "收起" : `更多 ${cities.length - CITY_FOLD} 个`}
               </button>
             )}
+          </div>
+        </div>
+
+        <div className="filter-row">
+          <span className="lbl">发布</span>
+          <div className="chips">
+            <button className="chip" aria-pressed={filter.withinDays === 0} onClick={() => setFilter((f) => ({ ...f, withinDays: 0 }))}>
+              不限
+            </button>
+            {WITHIN_OPTIONS.map((d) => (
+              <button key={d} className="chip" aria-pressed={filter.withinDays === d} onClick={() => setFilter((f) => ({ ...f, withinDays: d }))}>
+                {d} 天内
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="filter-row">
+          <span className="lbl">排序</span>
+          <div className="seg" role="group" aria-label="排序方式">
+            <button aria-pressed={filter.sort === "match"} onClick={() => setFilter((f) => ({ ...f, sort: "match" }))}>
+              匹配度优先
+            </button>
+            <button aria-pressed={filter.sort === "new"} onClick={() => setFilter((f) => ({ ...f, sort: "new" }))}>
+              最新发布
+            </button>
           </div>
         </div>
 

@@ -149,10 +149,11 @@ export function useResumeDocs({ user, legacy, ready, onSignedOut }: Args) {
   );
 
   const create = useCallback(
-    async (name: string): Promise<boolean> => {
+    /** 新建一份简历；给了 data 就用它做初始内容（如岗位定制版），否则是空白简历。 */
+    async (name: string, data?: ResumeData): Promise<boolean> => {
       setError(undefined);
       if (activeId) await flush(activeId);
-      const r = await call<{ item: ResumeDoc }>("/api/me/resumes", { method: "POST", body: JSON.stringify({ name }) });
+      const r = await call<{ item: ResumeDoc }>("/api/me/resumes", { method: "POST", body: JSON.stringify(data ? { name, resume: data } : { name }) });
       if (!r.ok) {
         setError(r.data.error ?? "新建失败");
         return false;

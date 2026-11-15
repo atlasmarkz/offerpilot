@@ -179,4 +179,43 @@ html { scroll-behavior: smooth; }
 .dash .chip em { color: var(--faint); font-style: normal; margin-left: 4px; }
 .dash .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* ---------- 投递总览（官网 + 各平台） ---------- */
+:root { --src-official: #3b5bdb; --src-boss: #0d9488; --src-liepin: #d9480f; }
+@media (prefers-color-scheme: dark) { :root { --src-official: #7d98ff; --src-boss: #2dd4bf; --src-liepin: #ff8a4c; } }
+.src-official { background: var(--src-official); }
+.src-boss { background: var(--src-boss); }
+.src-liepin { background: var(--src-liepin); }
+.legend { margin-left: auto; display: flex; gap: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i, i.dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; flex: none; }
+i.dot { margin-right: 6px; vertical-align: 1px; }
+.bars.days { grid-template-columns: repeat(14, 1fr); gap: 4px; }
+.bar-stack { align-self: end; width: 100%; max-width: 22px; min-height: 3px; display: flex; flex-direction: column-reverse; gap: 1px; border-radius: 4px 4px 2px 2px; overflow: hidden; transition: height .4s; }
+.bar-stack i { display: block; min-height: 2px; }
+.bars.days .bar-x { font-size: 10px; }
+.src-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.src-table th, .src-table td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+.src-table th:first-child { text-align: left; font-weight: 550; }
+.src-table thead th { color: var(--muted); font-weight: 500; font-size: 12px; }
+.src-table tbody tr:last-child th, .src-table tbody tr:last-child td { border-bottom: 0; }
+.apply-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.apply-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 13px; }
+.apply-list .t { display: grid; min-width: 0; }
+.apply-list .t b, .apply-list .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apply-list .t span { color: var(--muted); font-size: 12px; }
+.apply-list select { font-size: 12.5px; }
+.sync-note { font-size: 12px; color: var(--faint); }
+.sync-note.error { color: var(--warn); }
+.sync-note.done { color: var(--ok); }
+
 @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-grid { grid-template-columns: 1fr; } }
+.table-wrap { overflow-x: auto; }
+.src-table th, .src-table td { white-space: nowrap; }
+@media (max-width: 560px) {
+  .apply-list li { grid-template-columns: auto minmax(0, 1fr); }
+  .apply-list select, .apply-list .link-btn { grid-column: 2; justify-self: start; }
+  .src-table { font-size: 12px; }
+  .src-table th, .src-table td { padding: 6px 4px; }
+  /* 14 天的日期在手机上挤不下：隔一个显示一个 */
+  .bars.days .bar-col:nth-child(even) .bar-x { visibility: hidden; }
+}

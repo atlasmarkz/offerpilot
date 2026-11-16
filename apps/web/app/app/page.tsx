@@ -316,6 +316,22 @@ export default function Home() {
             </span>
           </div>
         )}
+        {/* 手机上的页头：校招 / 实习 两个文字标签（宽屏用列表上方的分段按钮） */}
+        <div className="m-jobs-head">
+          <div className="m-tabs" role="tablist" aria-label="岗位类型">
+            <button role="tab" aria-selected={kind === "fulltime"} onClick={() => setKind("fulltime")}>
+              校招
+            </button>
+            <button role="tab" aria-selected={kind === "intern"} onClick={() => setKind("intern")}>
+              实习
+            </button>
+          </div>
+          {loaded && !error && (
+            <span className="m-jobs-count">
+              <b>{result.matches.length}</b> 个可投
+            </span>
+          )}
+        </div>
         <div className="grid3">
           <div className="col-side">
             <ResumePanel

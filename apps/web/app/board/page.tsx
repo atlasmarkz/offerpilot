@@ -4,6 +4,7 @@ import { ApplyRecord, type ApplyStatus } from "@offerpilot/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApplyOverview, type SyncState } from "../../components/ApplyOverview";
 import { BoardDashboard } from "../../components/BoardDashboard";
+import { CompanyAvatar } from "../../components/JobList";
 import { TopBar } from "../../components/TopBar";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { UPLOAD_BATCH, type Application } from "../../lib/applications";
@@ -19,8 +20,8 @@ interface Draft {
   applied_at: string;
 }
 const EMPTY: Draft = { company: "", title: "", url: "", note: "", applied_at: "" };
-/** 和 CSS 里手机布局的断点一致 */
-const NARROW = "(max-width: 640px)";
+/** 手机页头上的数字：点一下只看这个状态 */
+const HERO: BoardStatus[] = ["todo", "applied", "written_test", "interview", "offer"];
 
 export default function BoardPage() {
   const session = useSession();
@@ -182,6 +183,33 @@ export default function BoardPage() {
     <>
       <TopBar session={session} active="board" />
       <main className="app" style={{ maxWidth: 1500 }}>
+        {/* 手机页头：标题、添加按钮和各状态的数量（点数字筛选），宽屏用下面的 board-head */}
+        <section className="m-board-hero" aria-label="投递进度">
+          <div className="m-hero-top">
+            <h1>投递看板</h1>
+            <button className="m-add" aria-label="添加投递" onClick={() => setDraft({ ...EMPTY })}>
+              ＋
+            </button>
+          </div>
+          <span className="m-hero-sub">
+            共 {items.length} 条{session.usage.limits ? ` · 上限 ${session.usage.limits.boardItems}` : ""}
+          </span>
+          <div className="m-stats">
+            {HERO.map((st) => (
+              <button
+                key={st}
+                aria-pressed={filter === st}
+                onClick={() => {
+                  setView("list");
+                  setFilter(filter === st ? "all" : st);
+                }}
+              >
+                <b>{items.filter((x) => x.status === st).length}</b>
+                <span>{BOARD_LABEL[st]}</span>
+              </button>
+            ))}
+          </div>
+        </section>
         <div className="list-head board-head" style={{ marginBottom: 14 }}>
           <h1 className="page-title" style={{ fontSize: 20, margin: 0 }}>投递看板</h1>
           <span className="count">
@@ -191,13 +219,13 @@ export default function BoardPage() {
             ＋ 添加投递
           </button>
         </div>
-        {/* 手机上分成“进度 / 总览”两页，免得一路往下翻；宽屏两部分都显示 */}
-        <div className="m-seg" role="tablist" aria-label="看板视图">
+        {/* 手机上分成“我的投递 / 数据总览”两页，免得一路往下翻；宽屏两部分都显示 */}
+        <div className="m-tabs m-board-tabs" role="tablist" aria-label="看板视图">
           <button role="tab" aria-selected={view === "list"} onClick={() => setView("list")}>
-            进度
+            我的投递
           </button>
           <button role="tab" aria-selected={view === "stats"} onClick={() => setView("stats")}>
-            总览
+            数据总览
           </button>
         </div>
         {error && (
@@ -242,13 +270,40 @@ export default function BoardPage() {
               {filter !== "all" && items.length > 0 && !items.some((x) => x.status === filter) && (
                 <p className="dash-empty m-only">“{BOARD_LABEL[filter]}”里还没有记录。</p>
               )}
+              {/* 手机上：按更新时间排的卡片列表，点一张弹出操作面板；宽屏用下面的六列看板 */}
+              <ul className="m-list" aria-label="投递记录">
+                {items
+                  .filter((x) => filter === "all" || x.status === filter)
+                  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+                  .map((it) => (
+                    <li key={it.id}>
+                      <button className="m-card" onClick={() => setSheetId(it.id)}>
+                        <span className="mc-top">
+                          <b>{it.title}</b>
+                          <span className={`mc-status st-c-${it.status}`}>{BOARD_LABEL[it.status]}</span>
+                        </span>
+                        {it.company && (
+                          <span className="mc-co">
+                            <CompanyAvatar id={it.company} />
+                            {it.company}
+                          </span>
+                        )}
+                        {it.note && <span className="mc-note">{it.note}</span>}
+                        <span className="mc-foot">
+                          <span>{it.applied_at ? `投递于 ${it.applied_at}` : "还没投递"}</span>
+                          <span>更新于 {it.updated_at.slice(5, 10)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
               <div className="board-cols">
                 {BOARD_STATUSES.map((st) => {
                   const col = items.filter((x) => x.status === st);
                   return (
                     <section
                       key={st}
-                      className={`board-col${over === st ? " over" : ""}${col.length ? "" : " empty"}${filter !== "all" && filter !== st ? " filtered-out" : ""}`}
+                      className={`board-col${over === st ? " over" : ""}`}
                       aria-label={BOARD_LABEL[st]}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -266,27 +321,12 @@ export default function BoardPage() {
                         {BOARD_LABEL[st]} <span>{col.length}</span>
                       </h3>
                       {col.map((it) => (
-                        <article
-                          key={it.id}
-                          className="board-card"
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData("text/plain", it.id)}
-                          onClick={(e) => {
-                            // 手机上点整张卡片打开操作面板；宽屏上卡片里的按钮照常用
-                            if ((e.target as HTMLElement).closest("a, button, select")) return;
-                            if (window.matchMedia(NARROW).matches) setSheetId(it.id);
-                          }}
-                        >
-                          <div className="bc-main">
-                            <b>{it.title}</b>
-                            <div className="m">
-                              {[it.company, it.applied_at && `投递于 ${it.applied_at}`].filter(Boolean).join(" · ")}
-                            </div>
-                            {it.note && <div className="note">{it.note}</div>}
+                        <article key={it.id} className="board-card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", it.id)}>
+                          <b>{it.title}</b>
+                          <div className="m">
+                            {[it.company, it.applied_at && `投递于 ${it.applied_at}`].filter(Boolean).join(" · ")}
                           </div>
-                          <button className="bc-more" aria-label={`${it.title}：改状态、编辑或删除`} onClick={() => setSheetId(it.id)}>
-                            <span aria-hidden>›</span>
-                          </button>
+                          {it.note && <div className="note">{it.note}</div>}
                           <div className="acts">
                             <select aria-label="移动到" value={it.status} onChange={(e) => void move(it, e.target.value as BoardStatus)}>
                               {BOARD_STATUSES.map((s) => (

@@ -190,6 +190,28 @@ SQL Editor 运行 `supabase/migrations/0007_multi_resume.sql`（可重复运行�
 
 SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复运行）。它会创建 `attachment`、`board_item`、`app_settings` 表，数量上限触发器，以及私有存储桶 `resumes` 及其存储策略。运行后到 Supabase 的 Storage 页面确认 `resumes` 桶存在且是 **Private**。
 
+### 支付（0012，支付宝沙箱先跑通）
+
+现在先在 Vercel + Supabase 上用**支付宝沙箱**把付款到账的整条链路跑通；拿到营业执照、迁到国内云并完成 ICP 备案后，再换成正式应用。沙箱不需要营业执照，也不收真钱。
+
+1. **建表**：SQL Editor 运行 `supabase/migrations/0012_pay_orders.sql`（可重复运行，要在 0004 之后）。它创建订单表 `pay_order` 和履约函数 `fulfill_order`：在一个事务里把订单改成已支付并发放权益，同一单只发一次。
+2. **沙箱应用**：登录 [支付宝开放平台](https://open.alipay.com) → 控制台 → 沙箱。记下沙箱的 **APPID**；接口加签方式选“系统默认密钥”或自定义 RSA2 密钥，拿到**应用私钥**和**支付宝公钥**（不是应用公钥）。沙箱页面还会给一个**沙箱买家账号**，付款时用它登录。
+3. **环境变量**（Vercel → Settings → Environment Variables，或本机 `.env`）：
+   - `BILLING_ENABLED=1`、`SUPABASE_SERVICE_KEY`（计费本来就需要）
+   - `PAYMENT_ENABLED=1`
+   - `ALIPAY_APP_ID`、`ALIPAY_PRIVATE_KEY`、`ALIPAY_PUBLIC_KEY`（带不带 `-----BEGIN` 头都行）
+   - `ALIPAY_GATEWAY` 不填即沙箱网关
+   - `PAY_PUBLIC_ORIGIN`：线上站点地址，支付宝异步通知打到 `<地址>/api/pay/notify/alipay`
+4. **验证**：登录 → 账户页“会员与购买” → 买一个“Plus 一个月” → 跳到支付宝沙箱收银台，用沙箱买家账号付款 → 自动回到账户页，几秒内显示“支付成功，权益已到账”，等级和额度随之变化。
+
+说明：
+
+- **金额只认服务端**：下单接口只接收商品 id，价格和权益来自 `packages/shared/src/plans.ts` 的商品目录；履约时数据库函数再核对订单上的商品和金额。
+- **到账有两条路**：支付宝异步通知（要能从公网访问，本机 localhost 收不到），以及回到网站后订单页主动向支付宝查单。任一条确认支付即履约，重复确认不会重复发放。
+- **续期 / 升级**：同等级续期顺延到期日并累加额度；升级从付款时起算，旧等级没用完的额度带过去；会员有效期内不能买更低等级。不自动续费。
+- **还没做**：退款（目前用管理员命令手动处理）、每日对账、发票、微信支付（需要已认证服务号和备案域名，没有沙箱）。
+- 删除账号会连同订单记录一起删除；正式收费后，财务记录可能需要按规定保留一段时间，上线前请确认。
+
 ## 七、上线前自检
 
 - [ ] `.env` 没有被提交（`git status` 里看不到它）。

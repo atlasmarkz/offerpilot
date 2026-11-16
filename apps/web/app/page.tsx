@@ -1,31 +1,31 @@
 "use client";
 
-import { PLANS, PLAN_ORDER } from "@offerpilot/shared";
+import { PricingSection } from "../components/PricingSection";
 import { useEffect, useState } from "react";
 import { LoginDialog } from "../components/LoginDialog";
 import { useSession } from "../hooks/useSession";
 
 const FEATURES = [
-  { icon: "🎯", title: "硬条件精准筛选", text: "学历、届别、专业、院校要求逐项比对，只给你真正能投的岗位，并告诉你哪些条件岗位没写清楚。" },
-  { icon: "📄", title: "简历解析与 AI 建议", text: "上传 PDF 或 Word，自动整理成结构化简历，再给出可执行的修改建议。不编造经历，缺数据只提示你补充。" },
-  { icon: "✍️", title: "在线简历，一键导出", text: "结构化编辑、实时 A4 预览，导出整洁的 PDF。联系方式只在你手里，不会发给大模型。" },
-  { icon: "⚡", title: "浏览器扩展填表", text: "在官网投递页一键填入基础信息，验证码和提交始终由你自己完成。" },
-  { icon: "📌", title: "投递看板", text: "待投递、已投递、笔试、面试、Offer，一张看板看清每个岗位的进度，附备注和日期。" },
-  { icon: "🔒", title: "隐私优先", text: "解析不保存原始文件，云端只留最新一份结构化简历，随时一键删除账号和全部数据。" },
+  { icon: "⚡", title: "官网投递一键填表", text: "扩展识别飞书、Moka、北森等投递系统，把教育、经历、联系方式一次填好，缺什么提示你补。只填不提交，验证码和提交始终由你自己完成。" },
+  { icon: "📌", title: "投递进度看板", text: "待投递、已投递、笔试、面试、Offer，一张看板看清每个岗位走到哪一步；超过两周没动静的会提醒你跟进。" },
+  { icon: "📊", title: "投递总览", text: "官网和招聘平台的投递合在一起统计：每天投了多少、哪个渠道回应率高、面试和 Offer 各有几个。" },
+  { icon: "🎯", title: "只看能投的岗位", text: "34 家公司的校招和实习，每天更新、下架的自动隐藏；学历、届别、专业、院校逐项比对，岗位没写清楚的条件会标出来。" },
+  { icon: "🤖", title: "招聘平台自动投递", text: "Boss直聘自动筛选、自动打招呼：每日上限、随机间隔、遇到验证码立即停下交给你。即将推出。" },
+  { icon: "🔒", title: "隐私优先", text: "姓名、手机等联系方式只存在你的浏览器里；解析不保存原始文件，随时一键删除账号和全部数据。" },
 ];
 
 const STEPS = [
-  { n: "1", title: "导入简历", text: "上传简历或手动填写，几秒得到你的求职画像。" },
-  { n: "2", title: "筛选并勾选岗位", text: "按硬条件、城市、公司检索，点开岗位看要求对照。" },
-  { n: "3", title: "打磨与投递", text: "AI 改简历，扩展填表，看板追踪每一次投递。" },
+  { n: "1", title: "填好投递资料", text: "上传简历或手动填写一次，扩展填表、各家投递都用这一份。" },
+  { n: "2", title: "筛出能投的岗位", text: "按硬条件、城市、公司、发布时间筛选，加入投递看板。" },
+  { n: "3", title: "一键填表，看板跟进", text: "到官网投递页点扩展图标填好，提交后在看板里跟进笔试、面试。" },
 ];
 
 const FAQ = [
-  { q: "我的简历会被保存吗？", a: "解析时文件只在内存中处理，不落盘。云端只保存你确认后的结构化内容，而且每人只保留最新一份。你也可以另外上传附件简历用于投递，随时可以删除。" },
-  { q: "AI 会不会编造我的经历？", a: "不会。我们要求模型严格依据你已写的内容给建议；需要数据时只放“请补充”的占位，让你自己填真实数字。" },
-  { q: "可以用自己的大模型吗？", a: "可以。在“模型设置”里填你自己的 Base URL、API Key 和模型名即可，不扣站点额度。也支持自己部署整套服务。" },
-  { q: "岗位信息可靠吗？", a: "岗位来自各公司官网公开的校招页面，我们抽样核对投递链接可打开。具体要求请以官网为准，页面上也会标出岗位没写清楚的条件。" },
-  { q: "会员什么时候开放？", a: "会员和支付正在筹备中，开放前所有功能可以用免费版体验。" },
+  { q: "扩展会替我提交申请吗？", a: "官网投递不会：扩展只填写，提交和验证码始终由你自己完成。招聘平台自动投递（即将推出）需要你单独开启并确认风险，有每日上限，遇到验证码立即停下。" },
+  { q: "岗位信息可靠吗？", a: "岗位来自各公司官网公开的校招页面，每天更新；连续两次找不到的岗位会自动下架隐藏。具体要求请以官网为准，岗位没写清楚的条件会标出来。" },
+  { q: "我的资料会被保存吗？", a: "联系方式只存在你的浏览器里。解析简历时文件只在内存中处理、不落盘，云端只保存你确认后的结构化内容。随时可以一键删除账号和全部数据。" },
+  { q: "AI 会不会编造我的经历？", a: "不会。AI 工具只依据你已写的内容；生成的内容里出现你资料里没有的数字或技能，会直接标出来提醒你核实。" },
+  { q: "会员怎么收费？", a: "免费版就能筛岗位、填表、用看板。会员月付 9.9 元起，推荐求职季卡（3 个月）；会员不自动续费。" },
 ];
 
 function Mock() {
@@ -135,7 +135,7 @@ export default function Landing() {
             <span className="lp-grad">都交给 OfferPilot</span>
           </h1>
           <p className="lp-sub">
-            上传简历，自动筛出你<b>真正满足硬条件</b>的校招与实习岗位；AI 帮你打磨简历，扩展一键填表，看板追踪每一次投递。
+            自动筛出你<b>真正满足硬条件</b>的校招与实习岗位，扩展<b>一键填好官网投递表</b>，<b>看板</b>追踪每一次投递的进度。
           </p>
           <div className="lp-cta">
             <button className="btn lp-btn-lg" onClick={start}>
@@ -150,15 +150,15 @@ export default function Landing() {
         </section>
 
         <section className="lp-strip" aria-label="特点">
-          <span>覆盖互联网与科技头部公司</span>
-          <span>岗位持续更新</span>
-          <span>投递链接抽样核对</span>
-          <span>解析不保存原始文件</span>
+          <span>34 家公司 · 含芯片、车企、国央企</span>
+          <span>岗位每天更新，下架自动隐藏</span>
+          <span>只填不提交，验证码你来</span>
+          <span>联系方式只存在你的浏览器</span>
         </section>
 
         <section id="features" className="lp-section">
-          <h2>一个工具，覆盖求职的全流程</h2>
-          <p className="lp-lead">不是又一个岗位列表，而是从“找得到、投得准”到“改得好、跟得紧”的完整闭环。</p>
+          <h2>把投递这件事做可靠</h2>
+          <p className="lp-lead">少填重复的表，少漏要跟进的投递：找得到能投的岗位，填得快，进度看得清。</p>
           <div className="lp-grid">
             {FEATURES.map((f) => (
               <article key={f.title} className="lp-card">
@@ -185,43 +185,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="pricing" className="lp-section">
-          <h2>选择适合你的方案</h2>
-          <p className="lp-lead">免费版就能完成筛选、编辑和投递管理；需要更多 AI 次数和功能时再升级。价格即将公布。</p>
-          <div className="lp-plans">
-            {PLAN_ORDER.map((id) => {
-              const p = PLANS[id];
-              return (
-                <article key={id} className={`lp-plan${id === "plus" ? " hot" : ""}`}>
-                  {id === "plus" && <span className="lp-tag">最受欢迎</span>}
-                  <h3>{p.name}</h3>
-                  <p className="lp-plan-tag">{p.tagline}</p>
-                  <div className="lp-price">{id === "free" ? "¥0" : "即将开通"}</div>
-                  <ul>
-                    {p.features.map((f) => (
-                      <li key={f.text}>
-                        <i>✓</i>
-                        <span>
-                          {f.text}
-                          {f.soon && <em>即将推出</em>}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {id === "free" ? (
-                    <button className="btn block" onClick={start}>
-                      免费开始
-                    </button>
-                  ) : (
-                    <button className="btn ghost block" disabled>
-                      即将开通
-                    </button>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
+        <PricingSection loggedIn={!!session.user} onStart={start} />
 
         <section id="faq" className="lp-section lp-alt">
           <h2>常见问题</h2>

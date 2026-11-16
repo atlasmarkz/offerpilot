@@ -127,6 +127,15 @@ html { scroll-behavior: smooth; }
 .plan-box.cur { border: 2px solid var(--brand); background: var(--brand-soft); }
 .plan-box h3 { margin: 0 0 4px; font-size: 15px; }
 .plan-box ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); }
+.plan-box { display: flex; flex-direction: column; }
+.plan-box.want:not(.cur) { border: 2px solid color-mix(in srgb, var(--brand) 55%, var(--line)); }
+.plan-price { font-size: 20px; font-weight: 800; margin: 2px 0 4px; }
+.plan-price small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.plan-buy { display: grid; gap: 6px; margin-top: auto; padding-top: 12px; }
+.plan-buy .btn { width: 100%; }
+.pack-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 12px; font-size: 13px; color: var(--muted); }
+.pack-row b { color: var(--text); }
+@media (max-width: 560px) { .plan-compare { grid-template-columns: 1fr; } }
 
 /* ---------- 看板数据概览 ---------- */
 .dash { margin-bottom: 18px; }
@@ -219,3 +228,9 @@ i.dot { margin-right: 6px; vertical-align: 1px; }
   /* 14 天的日期在手机上挤不下：隔一个显示一个 */
   .bars.days .bar-col:nth-child(even) .bar-x { visibility: hidden; }
 }
+
+/* ---------- 价格 ---------- */
+.lp-price small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.lp-season { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--brand); }
+.lp-pack { margin: 22px auto 0; max-width: 760px; text-align: center; color: var(--muted); font-size: 14px; }
+.lp-pack b { color: var(--text); }

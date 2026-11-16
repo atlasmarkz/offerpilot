@@ -107,12 +107,37 @@ export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard,
         </>
       )}
 
+      <div className="cta">
+        <a className="btn" href={job.applyUrl} target="_blank" rel="noreferrer">
+          前往官网投递 ↗
+        </a>
+        <button className="btn ghost" onClick={onToggle}>
+          {picked ? "✓ 已加入，点击移出" : "＋ 加入已选"}
+        </button>
+        {onAddBoard && (
+          <button className="btn ghost" onClick={async () => setBoardMsg(await onAddBoard())}>
+            📌 加入投递看板
+          </button>
+        )}
+        {boardMsg && (
+          <span className="msg" role="status" style={{ margin: 0 }}>
+            {boardMsg} {boardMsg.startsWith("已加入") && <a href="/board">去看板 →</a>}
+          </span>
+        )}
+      </div>
+      <p className="msg" style={{ color: "var(--faint)" }}>
+        岗位信息来自官网公开页面，可能滞后或有误，请以官网为准。
+      </p>
       {onFit && (
-        <>
-          <div className="sec-title">AI 匹配度评估</div>
+        // AI 工具：默认收起，投递和加入看板放在前面；已经评估过的岗位直接展开看结果
+        <details className="ai-tools detail-ai" open={!!shownFit}>
+          <summary>
+            <h2>AI 工具</h2>
+            <span className="hint">匹配度评估 · 按岗位定制简历</span>
+          </summary>
           {!shownFit?.fit && (
-            <p className="msg" style={{ marginTop: 0, color: "var(--muted)" }}>
-              拿你的在线简历和这个岗位逐条对照：打 1-5 分，列出匹配的证据、差距和简历该突出什么。4 分以上再投更划算。
+            <p className="msg" style={{ marginTop: 10, color: "var(--muted)" }}>
+              拿你的在线简历和这个岗位逐条对照：打 1-5 分，列出匹配的证据、差距和简历该突出什么。
             </p>
           )}
           {shownFit?.fit && <FitResultView fit={shownFit.fit} note={shownFit.note} />}
@@ -144,30 +169,8 @@ export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard,
               </a>
             )}
           </div>
-        </>
+        </details>
       )}
-
-      <div className="cta">
-        <a className="btn" href={job.applyUrl} target="_blank" rel="noreferrer">
-          前往官网投递 ↗
-        </a>
-        <button className="btn ghost" onClick={onToggle}>
-          {picked ? "✓ 已加入，点击移出" : "＋ 加入已选"}
-        </button>
-        {onAddBoard && (
-          <button className="btn ghost" onClick={async () => setBoardMsg(await onAddBoard())}>
-            📌 加入投递看板
-          </button>
-        )}
-        {boardMsg && (
-          <span className="msg" role="status" style={{ margin: 0 }}>
-            {boardMsg} {boardMsg.startsWith("已加入") && <a href="/board">去看板 →</a>}
-          </span>
-        )}
-      </div>
-      <p className="msg" style={{ color: "var(--faint)" }}>
-        岗位信息来自官网公开页面，可能滞后或有误，请以官网为准。
-      </p>
     </article>
   );
 }

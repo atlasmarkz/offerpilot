@@ -19,16 +19,18 @@ interface Props {
   onSaveAs?: (data: ResumeData, name: string) => Promise<boolean>;
   saveAsBlocked?: string;
   onApply: (data: ResumeData) => void;
+  /** 从岗位页带着岗位跳过来时调用（页面据此展开 AI 工具） */
+  onHandoff?: () => void;
 }
 
-/** 岗位页把岗位交给简历工作台去定制时用的 sessionStorage 键。 */
+/** 岗位页把岗位交给“投递资料”页去定制时用的 sessionStorage 键。 */
 export const TAILOR_HANDOFF_KEY = "offerpilot.tailor.job";
 
 /**
  * 粘贴一个岗位来评估（借鉴 career-ops 的“贴一个岗位，先看值不值得投”）：
  * Boss直聘、实习网站、公众号里的岗位不在岗位库里，复制岗位名和描述过来就能和简历对照。
  */
-export function PasteJobFit({ consent, blank, costHint, evaluate, tailor, resume, onSaveAs, saveAsBlocked, onApply }: Props) {
+export function PasteJobFit({ consent, blank, costHint, evaluate, tailor, resume, onSaveAs, saveAsBlocked, onApply, onHandoff }: Props) {
   const [tailoring, setTailoring] = useState(false);
   const [tailored, setTailored] = useState<{ plan?: TailorPlan; note?: string; error?: string; key: number }>();
 
@@ -57,6 +59,7 @@ export function PasteJobFit({ consent, blank, costHint, evaluate, tailor, resume
       setDescription(String(j.description ?? "").slice(0, 8000));
       if (j.fit) setResult({ fit: j.fit });
       setOpen(true);
+      onHandoff?.();
     } catch {
       /* 没有或坏数据：忽略 */
     }

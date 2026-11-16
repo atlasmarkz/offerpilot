@@ -30,11 +30,11 @@ export function TopBar({ session, active, status, children }: Props) {
           <a href="/app" aria-current={active === "jobs" ? "page" : undefined}>
             岗位
           </a>
-          <a href="/resume" aria-current={active === "resume" ? "page" : undefined}>
-            简历工作台
-          </a>
           <a href="/board" aria-current={active === "board" ? "page" : undefined}>
             投递看板
+          </a>
+          <a href="/resume" aria-current={active === "resume" ? "page" : undefined}>
+            投递资料
           </a>
         </nav>
         <span className="spacer" />

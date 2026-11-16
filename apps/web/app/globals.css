@@ -107,13 +107,6 @@ button { font: inherit; color: inherit; }
   .app { padding: 14px max(12px, var(--sa-r)) calc(96px + var(--sa-b)) max(12px, var(--sa-l)); }
   .topbar { padding: calc(10px + var(--sa-t)) max(14px, var(--sa-r)) 10px max(14px, var(--sa-l)); }
 }
-/* 手机竖屏：导航挪到第二行、三个入口平分宽度，不再挤成竖排 */
-@media (max-width: 640px) {
-  .topbar { flex-wrap: wrap; gap: 8px 10px; }
-  .topbar .nav { order: 3; width: 100%; margin-left: 0; }
-  .topbar .nav a { flex: 1; text-align: center; white-space: nowrap; padding: 6px 4px; }
-  .topbar .stat { font-size: 12px; }
-}
 
 /* ---------- 卡片 ---------- */
 .panel {
@@ -411,21 +404,3 @@ textarea.input { resize: vertical; font-family: inherit; }
 .rs-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; color: var(--faint); font-size: 12.5px; }
 .rs-actions { display: inline-flex; gap: 12px; }
 
-/* ---------- 手机 / PWA ---------- */
-/* iOS Safari 在字号小于 16px 的输入框获得焦点时会自动放大页面，手机上统一用 16px */
-@media (max-width: 640px) and (hover: none) {
-  .input, select, textarea { font-size: 16px; }
-}
-/* “添加到主屏幕”提示：贴在底部，让开 Home 横条 */
-.pwa-hint {
-  position: fixed; z-index: 35; left: max(12px, var(--sa-l)); right: max(12px, var(--sa-r)); bottom: calc(12px + var(--sa-b));
-  max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 30px rgba(20, 26, 41, .18);
-}
-.pwa-hint img { flex: none; border-radius: 10px; }
-.pwa-hint-text { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 12.5px; line-height: 1.5; }
-.pwa-hint-text b { font-size: 13.5px; }
-.pwa-hint-text span { color: var(--muted); }
-.pwa-share { vertical-align: -2px; margin: 0 2px; color: var(--brand); }
-.pwa-hint-close { flex: none; align-self: flex-start; color: var(--faint); font-size: 15px; padding: 2px 4px; }
-@media print { .pwa-hint { display: none !important; } }

@@ -5,6 +5,7 @@ import type { SyncStatus } from "../hooks/useCloudSync";
 import type { useSession } from "../hooks/useSession";
 import { AccountMenu } from "./AccountMenu";
 import { LoginDialog } from "./LoginDialog";
+import { MOBILE_TITLE, MobileTabBar } from "./MobileTabBar";
 
 interface Props {
   session: ReturnType<typeof useSession>;
@@ -50,6 +51,9 @@ export function TopBar({ session, active, status, children }: Props) {
           />
         )}
       </header>
+      {/* 手机上：大标题 + 底部标签栏（看板页自己有标题和操作按钮） */}
+      {active !== "board" && <h1 className="m-title">{MOBILE_TITLE[active]}</h1>}
+      <MobileTabBar active={active} account={session.enabled} />
       {showLogin && (
         <LoginDialog
           onClose={() => setShowLogin(false)}

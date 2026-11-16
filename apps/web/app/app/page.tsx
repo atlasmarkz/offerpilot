@@ -349,7 +349,7 @@ export default function Home() {
               active={filterActive}
             />
 
-            <section className="panel" aria-label="匹配岗位">
+            <section className="panel jobs-card" aria-label="匹配岗位">
               <div className="list-head" style={{ marginBottom: 12 }}>
                 <span className="seg" role="group" aria-label="岗位类型">
                   <button aria-pressed={kind === "fulltime"} onClick={() => setKind("fulltime")}>

@@ -115,20 +115,6 @@ html { scroll-behavior: smooth; }
 .board-card .note { color: var(--muted); font-size: 12px; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 4.8em; overflow: hidden; }
 .board-card .acts { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .board-card select { font-size: 12px; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
-.drag-hint-touch { display: none; }
-/* 手机上：六列看板改成按状态分组的列表，空的分组不显示；触屏上拖拽不好用，改状态靠下拉框 */
-@media (max-width: 640px) {
-  .board-cols { grid-template-columns: 1fr; overflow-x: visible; gap: 10px; }
-  .board-col { min-height: 0; padding: 8px; }
-  .board-col.empty { display: none; }
-  .board-card { cursor: default; padding: 11px 12px; }
-  .board-card .acts { align-items: center; gap: 14px; }
-  .board-card select { padding: 5px 8px; }
-}
-@media (max-width: 640px), (hover: none) {
-  .drag-hint { display: none; }
-  .drag-hint-touch { display: inline; }
-}
 
 /* ---------- 账户页 ---------- */
 .acct-page { display: grid; gap: 16px; max-width: 960px; margin: 0 auto; }

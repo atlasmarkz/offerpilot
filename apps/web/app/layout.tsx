@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { PwaClient } from "../components/PwaClient";
 import "./globals.css";
 import "./landing.css";
+// 手机界面放在最后，覆盖前面的宽屏样式
+import "./mobile.css";
 
 export const metadata: Metadata = {
   title: "OfferPilot · 校招岗位匹配",

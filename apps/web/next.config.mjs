@@ -2,6 +2,10 @@
 export default {
   // shared 包直接以 TypeScript 源码发布
   transpilePackages: ["@offerpilot/shared"],
+  // Service Worker 脚本每次都要回源检查，否则发版后手机上可能一直跑旧的缓存规则
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] }];
+  },
   experimental: {
     // PDF.js 要在运行时按路径找 worker，不能被打进 webpack 包里
     serverComponentsExternalPackages: ["pdfjs-dist", "unpdf", "mammoth"],

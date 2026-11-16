@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#181d29" media="(prefers-color-scheme: dark)">
+<title>网络已断开 · OfferPilot</title>
+<!-- 断网时 Service Worker 返回这个页面。样式全部内联，颜色与 app/globals.css 的设计令牌一致。 -->
+<style>
+  :root { --bg: #f3f5fa; --surface: #ffffff; --text: #141a29; --muted: #5d687c; --line: #e4e8f0; --brand: #3b5bdb; --brand-strong: #2f49b8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f131c; --surface: #181d29; --text: #e9edf5; --muted: #a3adc0; --line: #2a3142; --brand: #7d98ff; --brand-strong: #a3b6ff; }
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  }
+  .card { width: 100%; max-width: 380px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 22px; }
+  img { width: 56px; height: 56px; }
+  h1 { font-size: 19px; margin: 12px 0 6px; }
+  p { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+  button { font: inherit; font-weight: 600; padding: 9px 22px; border-radius: 10px; border: 1px solid var(--brand); background: var(--brand); color: #fff; cursor: pointer; }
+  button:active { background: var(--brand-strong); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <img src="/icons/icon-192.png" alt="">
+    <h1>网络已断开</h1>
+    <p>投递进度和岗位都需要联网读取。连上网络后会自动刷新，也可以点下面的按钮重试。</p>
+    <button type="button" onclick="location.reload()">重新加载</button>
+  </main>
+  <script>
+    window.addEventListener("online", function () { location.reload(); });
+  </script>
+</body>
+</html>

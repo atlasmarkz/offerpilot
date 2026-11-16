@@ -191,7 +191,8 @@ export default function BoardPage() {
             <BoardDashboard items={items} usage={session.usage} />
             <div className="list-head" style={{ marginBottom: 10 }}>
               <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>
-              <span className="count">拖动卡片可更改状态</span>
+              <span className="count drag-hint">拖动卡片可更改状态</span>
+              <span className="count drag-hint-touch">用卡片上的下拉框更改状态</span>
             </div>
             {items.length === 0 && !error && (
               <p className="dash-empty">还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。</p>
@@ -202,7 +203,7 @@ export default function BoardPage() {
               return (
                 <section
                   key={st}
-                  className={`board-col${over === st ? " over" : ""}`}
+                  className={`board-col${over === st ? " over" : ""}${col.length ? "" : " empty"}`}
                   aria-label={BOARD_LABEL[st]}
                   onDragOver={(e) => {
                     e.preventDefault();

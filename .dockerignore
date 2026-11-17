@@ -1,0 +1,19 @@
+# 构建镜像时不需要、或绝不能带进镜像的东西
+.git
+**/node_modules
+**/.next
+**/.output
+**/.wxt
+**/.turbo
+**/coverage
+# 密钥：运行时用环境变量注入，镜像里一个都不能有
+.env
+.env.*
+!.env.example
+deploy/.env
+# 本机采集的岗位数据、截图等
+apps/crawler/data
+docs/images
+docs/chrome-store
+docs/edge-store
+*.log

@@ -267,6 +267,8 @@ npm run build -w @offerpilot/web           # 生产构建
 4. Supabase 里配置邮件模板（带 `{{ .Token }}` 验证码）和自己的 SMTP。
 5. 想开收费：设置 `BILLING_ENABLED=1` 和服务端的 `SUPABASE_SERVICE_KEY`。
 
+**国内用户访问**：`*.vercel.app` 在国内经常打不开。仓库带了 Docker 部署包（`Dockerfile` + `deploy/` 里的 Compose 和 Caddy，自动 HTTPS），放到香港服务器上不用备案就能访问，以后迁到国内服务器用同一个镜像。步骤见 [DEPLOY.md 第九节](DEPLOY.md#九部署到自己的服务器docker国内用户能访问)。
+
 ---
 
 ## 项目状态与路线图
@@ -284,7 +286,7 @@ npm run build -w @offerpilot/web           # 生产构建
 | 支付（微信 / 支付宝） | ⏳ 等营业执照与商户资质 |
 | 岗位定制简历、简答题草稿、面试准备、岗位匹配深度分析 | ⏳ 规划中 |
 | 岗位提醒 | ⏳ 规划中 |
-| Docker 自部署包 | ⏳ 规划中 |
+| Docker 自部署包 | ✅ 可用（`Dockerfile`、`deploy/`） |
 | 手机号 / 微信登录 | ⏳ 需要短信或微信开放平台企业资质 |
 | 更多公司（阿里、华为、蚂蚁、OPPO、滴滴等） | ⏳ 部分公司暂无可用的公开列表接口或需要登录，详见采集器文档 |
 

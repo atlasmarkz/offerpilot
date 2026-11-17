@@ -1,0 +1,12 @@
+# Caddy 会为 DOMAIN 自动申请并续期 Let's Encrypt 证书（要求域名已解析到这台服务器，80/443 端口放行）。
+# 来自客户端的 X-Forwarded-For 会被忽略，Caddy 写入真实的客户端 IP 再转给网页端。
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

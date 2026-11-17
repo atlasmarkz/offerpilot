@@ -226,3 +226,86 @@ iOS 16.4 起，**已添加到主屏幕**的 PWA 支持 Web Push（在 Safari 标
 4. `sw.js` 里加 `push` 事件（`self.registration.showNotification(...)`）和 `notificationclick` 事件（打开 `/board`）。
 5. 服务端在需要提醒时（笔试 / 面试临近、长时间没进展、HR 回复）用 `web-push` 之类的库发送；返回 404/410 的订阅要删掉。可以挂在现有的 GitHub Actions 定时任务里。
 6. 隐私说明页补上“推送提醒”一节：发什么、多久发、怎么关。
+
+## 九、部署到自己的服务器（Docker，国内用户能访问）
+
+Vercel 的 `*.vercel.app` 域名和线路在国内经常打不开。网页端不从境外域名加载任何资源，浏览器也不直连 Supabase（登录、数据、附件都经过我们自己的接口），所以**只要把网页服务换个地方跑**就行；Supabase、MiniMax、GitHub Actions 定时采集都不用动。
+
+分两步走：
+
+| | 现在：香港服务器 | 正式收款前：国内服务器 |
+|---|---|---|
+| 备案 | 不需要 | 域名要做 ICP 备案（要先有国内服务器，流程一般几周） |
+| 国内访问 | 能访问，延迟通常可以接受 | 最稳 |
+| 支付宝 | 沙箱可以联调 | 正式收款要求网站域名已备案 |
+
+两步用的是同一个镜像，迁移就是换台机器、改域名解析。
+
+### 1. 准备
+
+- 一台服务器：阿里云 / 腾讯云的**香港**轻量应用服务器就够，建议 2 核 2G 起，系统选 Ubuntu 22.04 或 24.04。安全组（防火墙）放行 **80、443（TCP）和 443（UDP）**，其他端口不用开。
+- 一个自己的域名，在域名商那里加一条 **A 记录**指向服务器的公网 IP（例如 `app.你的域名.com`）。
+
+### 2. 装 Docker、拿代码
+
+```bash
+ssh root@服务器IP
+curl -fsSL https://get.docker.com | sh
+git clone https://github.com/atlasmarkz/offerpilot.git && cd offerpilot/deploy
+```
+
+仓库是私有的话，用 GitHub 的个人访问令牌（只给读仓库的权限）或部署密钥来 clone。
+
+### 3. 填配置
+
+```bash
+cp .env.example .env && chmod 600 .env && nano .env
+```
+
+至少填 `DOMAIN`（刚才解析的域名，不带 `https://`）、`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_KEY`、`LLM_*`，和 Vercel 上填的一样。`.env` 已被 git 忽略，只存在这台服务器上。
+
+### 4. 启动
+
+```bash
+docker compose up -d --build
+```
+
+第一次会在服务器上构建镜像，几分钟。2G 内存的机器构建时可能内存不够，先加 2G 交换分区：
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+或者不在服务器上构建：到 GitHub 的 Actions 页面手动运行 `docker-image`（或打一个 `v` 开头的标签），它会把镜像推到 `ghcr.io/atlasmarkz/offerpilot-web`；服务器上 `docker login ghcr.io`（用只给 `read:packages` 权限的令牌），在 `.env` 里设 `WEB_IMAGE=ghcr.io/atlasmarkz/offerpilot-web:latest`，然后 `docker compose pull && docker compose up -d`。
+
+### 5. 验证
+
+```bash
+curl https://你的域名/api/health
+```
+
+返回 `"ok":true`，并且 `configured` 里数据库、模型等是 `true`，就说明配置读到了（这个接口不返回任何密钥）。Caddy 会自动申请 HTTPS 证书，第一次访问可能要等几十秒。然后用手机流量（不连 Wi-Fi）打开网站试一下登录和岗位页。
+
+### 6. 换到新域名后要改的地方
+
+- **Supabase**：Authentication → URL Configuration 的 Site URL 改成新域名（邮件里的链接会用到）。
+- **浏览器扩展**：用新域名重新构建，`WXT_WEB_ORIGIN=https://你的域名 npx wxt build`，再重新打包上架。
+- **支付宝**：`.env` 里的 `PAY_PUBLIC_ORIGIN` 填 `https://你的域名`。
+- Vercel 可以先保留当备用，确认新站点稳定后再停。
+
+### 7. 日常运维
+
+```bash
+docker compose logs -f web            # 看日志
+git pull && docker compose up -d --build   # 更新到最新代码
+docker compose ps                     # 看运行状态（web 显示 healthy 才算正常）
+```
+
+回滚：`git checkout <上一个版本的标签或提交>` 后再 `docker compose up -d --build`；用 GitHub 镜像的话把 `WEB_IMAGE` 改成旧的版本号标签。
+
+### 8. 以后迁到国内服务器
+
+1. 买国内服务器，在服务器所在的云厂商提交 ICP 备案，等备案通过。
+2. 国内服务器上拉 Docker Hub 的镜像经常很慢甚至失败：在云厂商的“容器镜像服务”里配置镜像加速地址，或者用 GitHub 构建好的镜像同步到阿里云容器镜像服务再拉。构建时在 `.env` 里加 `NPM_REGISTRY=https://registry.npmmirror.com`。
+3. 其余步骤和上面一样；域名解析改到国内服务器即可。
+4. 收费前别忘了生成式 AI 服务、个人信息保护等合规要求（见 `docs/PRODUCT.md`）。

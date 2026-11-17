@@ -4,6 +4,7 @@ import { ApplyRecord, type ApplyStatus } from "@offerpilot/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApplyOverview, type SyncState } from "../../components/ApplyOverview";
 import { BoardDashboard } from "../../components/BoardDashboard";
+import { CompanyAvatar } from "../../components/JobList";
 import { TopBar } from "../../components/TopBar";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
 import { UPLOAD_BATCH, type Application } from "../../lib/applications";
@@ -19,6 +20,8 @@ interface Draft {
   applied_at: string;
 }
 const EMPTY: Draft = { company: "", title: "", url: "", note: "", applied_at: "" };
+/** 手机页头上的数字：点一下只看这个状态 */
+const HERO: BoardStatus[] = ["todo", "applied", "written_test", "interview", "offer"];
 
 export default function BoardPage() {
   const session = useSession();
@@ -29,6 +32,23 @@ export default function BoardPage() {
   const [draft, setDraft] = useState<Draft>();
   const [saving, setSaving] = useState(false);
   const [over, setOver] = useState<BoardStatus>();
+  // 手机上的视图、状态筛选和操作面板（宽屏上不起作用，见 landing.css）
+  const [view, setView] = useState<"list" | "stats">("list");
+  const [filter, setFilter] = useState<BoardStatus | "all">("all");
+  const [sheetId, setSheetId] = useState<string>();
+  const sheet = sheetId ? items.find((x) => x.id === sheetId) : undefined;
+
+  useEffect(() => {
+    if (!sheetId) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSheetId(undefined);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheetId]);
+
+  function edit(it: BoardItem) {
+    setSheetId(undefined);
+    setDraft({ id: it.id, company: it.company, title: it.title, url: it.url, note: it.note, applied_at: it.applied_at ?? "" });
+  }
 
   const load = useCallback(async () => {
     try {
@@ -163,13 +183,49 @@ export default function BoardPage() {
     <>
       <TopBar session={session} active="board" />
       <main className="app" style={{ maxWidth: 1500 }}>
-        <div className="list-head" style={{ marginBottom: 14 }}>
-          <h1 style={{ fontSize: 20, margin: 0 }}>投递看板</h1>
+        {/* 手机页头：标题、添加按钮和各状态的数量（点数字筛选），宽屏用下面的 board-head */}
+        <section className="m-board-hero" aria-label="投递进度">
+          <div className="m-hero-top">
+            <h1>投递看板</h1>
+            <button className="m-add" aria-label="添加投递" onClick={() => setDraft({ ...EMPTY })}>
+              ＋
+            </button>
+          </div>
+          <span className="m-hero-sub">
+            共 {items.length} 条{session.usage.limits ? ` · 上限 ${session.usage.limits.boardItems}` : ""}
+          </span>
+          <div className="m-stats">
+            {HERO.map((st) => (
+              <button
+                key={st}
+                aria-pressed={filter === st}
+                onClick={() => {
+                  setView("list");
+                  setFilter(filter === st ? "all" : st);
+                }}
+              >
+                <b>{items.filter((x) => x.status === st).length}</b>
+                <span>{BOARD_LABEL[st]}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <div className="list-head board-head" style={{ marginBottom: 14 }}>
+          <h1 className="page-title" style={{ fontSize: 20, margin: 0 }}>投递看板</h1>
           <span className="count">
             共 {items.length} 条{session.usage.limits ? `（上限 ${session.usage.limits.boardItems}）` : ""}
           </span>
           <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => setDraft({ ...EMPTY })}>
             ＋ 添加投递
+          </button>
+        </div>
+        {/* 手机上分成“我的投递 / 数据总览”两页，免得一路往下翻；宽屏两部分都显示 */}
+        <div className="m-tabs m-board-tabs" role="tablist" aria-label="看板视图">
+          <button role="tab" aria-selected={view === "list"} onClick={() => setView("list")}>
+            我的投递
+          </button>
+          <button role="tab" aria-selected={view === "stats"} onClick={() => setView("stats")}>
+            数据总览
           </button>
         </div>
         {error && (
@@ -183,83 +239,172 @@ export default function BoardPage() {
             <div />
           </div>
         ) : (
-          <>
-            <ApplyOverview board={items} apps={apps} sync={sync} onSync={() => void syncFromExtension(false)} onStatus={(a, s) => void setAppStatus(a, s)} />
-            <div className="list-head" style={{ marginBottom: 10 }}>
-              <h2 style={{ fontSize: 15, margin: 0 }}>官网投递</h2>
+          <div className="board-views" data-view={view}>
+            <div className="board-stats">
+              <ApplyOverview board={items} apps={apps} sync={sync} onSync={() => void syncFromExtension(false)} onStatus={(a, s) => void setAppStatus(a, s)} />
+              <div className="list-head" style={{ marginBottom: 10 }}>
+                <h2 style={{ fontSize: 15, margin: 0 }}>官网投递</h2>
+              </div>
+              <BoardDashboard items={items} usage={session.usage} />
             </div>
-            <BoardDashboard items={items} usage={session.usage} />
-            <div className="list-head" style={{ marginBottom: 10 }}>
-              <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>
-              <span className="count">拖动卡片可更改状态</span>
-            </div>
-            {items.length === 0 && !error && (
-              <p className="dash-empty">还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。</p>
-            )}
-          <div className="board-cols">
-            {BOARD_STATUSES.map((st) => {
-              const col = items.filter((x) => x.status === st);
-              return (
-                <section
-                  key={st}
-                  className={`board-col${over === st ? " over" : ""}`}
-                  aria-label={BOARD_LABEL[st]}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setOver(st);
-                  }}
-                  onDragLeave={() => setOver(undefined)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setOver(undefined);
-                    const item = items.find((x) => x.id === e.dataTransfer.getData("text/plain"));
-                    if (item) void move(item, st);
-                  }}
-                >
-                  <h3>
-                    {BOARD_LABEL[st]} <span>{col.length}</span>
-                  </h3>
-                  {col.map((it) => (
-                    <article key={it.id} className="board-card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", it.id)}>
-                      <b>{it.title}</b>
-                      <div className="m">
-                        {[it.company, it.applied_at && `投递于 ${it.applied_at}`].filter(Boolean).join(" · ")}
-                      </div>
-                      {it.note && <div className="note">{it.note}</div>}
-                      <div className="acts">
-                        <select aria-label="移动到" value={it.status} onChange={(e) => void move(it, e.target.value as BoardStatus)}>
-                          {BOARD_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {BOARD_LABEL[s]}
-                            </option>
-                          ))}
-                        </select>
-                        {it.url && (
-                          <a className="link-btn" href={it.url} target="_blank" rel="noreferrer">
-                            投递页 ↗
-                          </a>
-                        )}
-                        <button
-                          className="link-btn"
-                          onClick={() =>
-                            setDraft({ id: it.id, company: it.company, title: it.title, url: it.url, note: it.note, applied_at: it.applied_at ?? "" })
-                          }
-                        >
-                          编辑
-                        </button>
-                        <button className="link-btn" onClick={() => void remove(it)}>
-                          删除
-                        </button>
-                      </div>
-                    </article>
+            <div className="board-list">
+              <div className="list-head board-list-head" style={{ marginBottom: 10 }}>
+                <h2 style={{ fontSize: 15, margin: 0 }}>全部投递</h2>
+                <span className="count drag-hint">拖动卡片可更改状态</span>
+              </div>
+              {items.length > 0 && (
+                <div className="m-chips" role="group" aria-label="按状态筛选">
+                  <button className="m-chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+                    全部 <span>{items.length}</span>
+                  </button>
+                  {BOARD_STATUSES.map((st) => (
+                    <button key={st} className="m-chip" aria-pressed={filter === st} onClick={() => setFilter(st)}>
+                      {BOARD_LABEL[st]} <span>{items.filter((x) => x.status === st).length}</span>
+                    </button>
                   ))}
-                </section>
-              );
-            })}
+                </div>
+              )}
+              {items.length === 0 && !error && (
+                <p className="dash-empty">还没有投递记录。在岗位详情里点“加入投递看板”，或点右上角“添加投递”手动记录。</p>
+              )}
+              {filter !== "all" && items.length > 0 && !items.some((x) => x.status === filter) && (
+                <p className="dash-empty m-only">“{BOARD_LABEL[filter]}”里还没有记录。</p>
+              )}
+              {/* 手机上：按更新时间排的卡片列表，点一张弹出操作面板；宽屏用下面的六列看板 */}
+              <ul className="m-list" aria-label="投递记录">
+                {items
+                  .filter((x) => filter === "all" || x.status === filter)
+                  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+                  .map((it) => (
+                    <li key={it.id}>
+                      <button className="m-card" onClick={() => setSheetId(it.id)}>
+                        <span className="mc-top">
+                          <b>{it.title}</b>
+                          <span className={`mc-status st-c-${it.status}`}>{BOARD_LABEL[it.status]}</span>
+                        </span>
+                        {it.company && (
+                          <span className="mc-co">
+                            <CompanyAvatar id={it.company} />
+                            {it.company}
+                          </span>
+                        )}
+                        {it.note && <span className="mc-note">{it.note}</span>}
+                        <span className="mc-foot">
+                          <span>{it.applied_at ? `投递于 ${it.applied_at}` : "还没投递"}</span>
+                          <span>更新于 {it.updated_at.slice(5, 10)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+              <div className="board-cols">
+                {BOARD_STATUSES.map((st) => {
+                  const col = items.filter((x) => x.status === st);
+                  return (
+                    <section
+                      key={st}
+                      className={`board-col${over === st ? " over" : ""}`}
+                      aria-label={BOARD_LABEL[st]}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setOver(st);
+                      }}
+                      onDragLeave={() => setOver(undefined)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setOver(undefined);
+                        const item = items.find((x) => x.id === e.dataTransfer.getData("text/plain"));
+                        if (item) void move(item, st);
+                      }}
+                    >
+                      <h3>
+                        {BOARD_LABEL[st]} <span>{col.length}</span>
+                      </h3>
+                      {col.map((it) => (
+                        <article key={it.id} className="board-card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", it.id)}>
+                          <b>{it.title}</b>
+                          <div className="m">
+                            {[it.company, it.applied_at && `投递于 ${it.applied_at}`].filter(Boolean).join(" · ")}
+                          </div>
+                          {it.note && <div className="note">{it.note}</div>}
+                          <div className="acts">
+                            <select aria-label="移动到" value={it.status} onChange={(e) => void move(it, e.target.value as BoardStatus)}>
+                              {BOARD_STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {BOARD_LABEL[s]}
+                                </option>
+                              ))}
+                            </select>
+                            {it.url && (
+                              <a className="link-btn" href={it.url} target="_blank" rel="noreferrer">
+                                投递页 ↗
+                              </a>
+                            )}
+                            <button className="link-btn" onClick={() => edit(it)}>
+                              编辑
+                            </button>
+                            <button className="link-btn" onClick={() => void remove(it)}>
+                              删除
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          </>
         )}
       </main>
+
+      {/* 手机上的操作面板（iOS Action Sheet）：改状态、打开投递页、编辑、删除 */}
+      {sheet && (
+        <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSheetId(undefined)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label={sheet.title}>
+            <div className="sheet-grabber" aria-hidden />
+            <div className="sheet-head">
+              <b>{sheet.title}</b>
+              <span>{[sheet.company, sheet.applied_at && `投递于 ${sheet.applied_at}`].filter(Boolean).join(" · ") || "未填写公司"}</span>
+              {sheet.note && <p>{sheet.note}</p>}
+            </div>
+            <div className="sheet-label">状态</div>
+            <div className="sheet-group" role="radiogroup" aria-label="状态">
+              {BOARD_STATUSES.map((s) => (
+                <button key={s} role="radio" aria-checked={sheet.status === s} onClick={() => void move(sheet, s)}>
+                  <i className={`st-dot st-${s}`} aria-hidden />
+                  {BOARD_LABEL[s]}
+                  {sheet.status === s && (
+                    <span className="sheet-check" aria-hidden>
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="sheet-group">
+              {sheet.url && (
+                <a href={sheet.url} target="_blank" rel="noreferrer">
+                  打开投递页 <span aria-hidden>↗</span>
+                </a>
+              )}
+              <button onClick={() => edit(sheet)}>编辑</button>
+              <button
+                className="danger"
+                onClick={() => {
+                  setSheetId(undefined);
+                  void remove(sheet);
+                }}
+              >
+                删除
+              </button>
+            </div>
+            <button className="sheet-done" onClick={() => setSheetId(undefined)}>
+              完成
+            </button>
+          </div>
+        </div>
+      )}
 
       {draft && (
         <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setDraft(undefined)}>

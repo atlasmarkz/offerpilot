@@ -108,19 +108,22 @@ export function JobDetail({ job, profile, picked, onToggle, onClose, onAddBoard,
       )}
 
       <div className="cta">
-        <a className="btn" href={job.applyUrl} target="_blank" rel="noreferrer">
+        <a className="btn cta-main" href={job.applyUrl} target="_blank" rel="noreferrer">
           前往官网投递 ↗
         </a>
-        <button className="btn ghost" onClick={onToggle}>
-          {picked ? "✓ 已加入，点击移出" : "＋ 加入已选"}
+        {/* 手机上这一栏固定在底部，次要按钮换成短文字（见 mobile.css） */}
+        <button className="btn ghost cta-sub" onClick={onToggle}>
+          <span className="cta-full">{picked ? "✓ 已加入，点击移出" : "＋ 加入已选"}</span>
+          <span className="cta-short">{picked ? "✓ 已选" : "＋ 已选"}</span>
         </button>
         {onAddBoard && (
-          <button className="btn ghost" onClick={async () => setBoardMsg(await onAddBoard())}>
-            📌 加入投递看板
+          <button className="btn ghost cta-sub" onClick={async () => setBoardMsg(await onAddBoard())}>
+            <span className="cta-full">📌 加入投递看板</span>
+            <span className="cta-short">📌 看板</span>
           </button>
         )}
         {boardMsg && (
-          <span className="msg" role="status" style={{ margin: 0 }}>
+          <span className="msg cta-msg" role="status" style={{ margin: 0 }}>
             {boardMsg} {boardMsg.startsWith("已加入") && <a href="/board">去看板 →</a>}
           </span>
         )}

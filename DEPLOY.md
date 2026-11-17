@@ -225,3 +225,26 @@ SQL Editor 运行 `supabase/migrations/0005_attachments_board.sql`（可重复�
 - [ ] 隐私说明页（`/privacy`）打开正常，内容和你实际使用的大模型服务相符。
 - [ ] 大模型服务商处已设置月度额度上限。
 - [ ] 岗位只展示摘要并跳转官网投递；对外推广前，再核对各公司网站的使用条款与 `robots.txt`。
+- [ ] 手机打开线上站点：`/manifest.webmanifest` 能访问，Chrome 开发者工具 Application 面板里 Service Worker 是 activated；用 iPhone Safari “添加到主屏幕”后从图标打开是全屏、进入投递看板。
+
+## 八、iPhone 上使用（PWA）
+
+网页端是 PWA，iPhone 用户可以用 Safari 的“分享 → 添加到主屏幕”把它当 App 用（使用说明见 README）。不需要苹果开发者账号，也不需要 APP 备案；部署到 Vercel 不用额外配置，只要满足：
+
+- **必须是 HTTPS**（Vercel 默认就是）。Service Worker 在 `http://` 上只有 `localhost` 能注册。
+- 相关文件：`apps/web/app/manifest.ts`（生成 `/manifest.webmanifest`）、`apps/web/public/sw.js`（手写的 Service Worker）、`apps/web/public/offline.html`（离线提示页）、`apps/web/public/icons/`（192 / 512 图标和可遮罩图标，由 `app/icon.png` 缩放生成）、`apps/web/components/PwaClient.tsx`（注册 SW、“添加到主屏幕”提示）。
+- `next.config.mjs` 给 `/sw.js` 加了 `Cache-Control: no-cache`，发版后手机会尽快拿到新的 SW。
+- **缓存规则**：只缓存 `/_next/static` 下带哈希的构建产物、图标和 logo（先读缓存），以及离线提示页。`/api/*` 永远不经过缓存（登录后的个人数据、岗位数据）；页面 HTML 也不缓存，页面跳转先走网络，断网时显示离线页。规则写在 `sw.js` 的 `strategyFor` 里，`apps/web/lib/pwa.test.ts` 有测试。改了规则或离线页，把 `sw.js` 里的 `VERSION` 加一，旧缓存会在新版本激活时清掉。
+- 开发环境（`npm run dev`）不注册 SW，避免热更新拿到旧代码。要在本机试离线效果，用 `npm run build -w @offerpilot/web && npm run start -w @offerpilot/web`。
+- 如果要彻底撤掉 SW：把 `sw.js` 换成只做 `self.registration.unregister()` 的版本发一次，不要直接删文件（已安装的手机会一直用旧的）。
+
+### 以后接推送提醒（Web Push）
+
+iOS 16.4 起，**已添加到主屏幕**的 PWA 支持 Web Push（在 Safari 标签页里不行）。接入步骤：
+
+1. 生成 VAPID 密钥对（如 `npx web-push generate-vapid-keys`），公钥放 `NEXT_PUBLIC_VAPID_PUBLIC_KEY`，私钥只放服务端环境变量。
+2. 新建 `push_subscription` 表（用户 id、endpoint、p256dh、auth，开行级安全），加 `POST/DELETE /api/me/push` 保存和删除订阅。
+3. 前端在设置里放一个“开启提醒”按钮：**必须由用户点击触发** `Notification.requestPermission()`，再 `registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`，把订阅发到上面的接口。iOS 上只在从主屏幕打开时才有 `PushManager`，在 Safari 里要先引导添加到主屏幕。
+4. `sw.js` 里加 `push` 事件（`self.registration.showNotification(...)`）和 `notificationclick` 事件（打开 `/board`）。
+5. 服务端在需要提醒时（笔试 / 面试临近、长时间没进展、HR 回复）用 `web-push` 之类的库发送；返回 404/410 的订阅要删掉。可以挂在现有的 GitHub Actions 定时任务里。
+6. 隐私说明页补上“推送提醒”一节：发什么、多久发、怎么关。

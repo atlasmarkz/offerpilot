@@ -26,7 +26,7 @@ const EXT_TEXT: Record<ExtState, string> = {
 
 export function ProfileCard({ form, set, ext, canSync, onSync, cloud }: Props) {
   return (
-    <section className="panel" aria-label="基础信息">
+    <section className="panel profile-card" aria-label="基础信息">
       <div className="panel-head">
         <span className="step">2</span>
         <h2>基础信息</h2>

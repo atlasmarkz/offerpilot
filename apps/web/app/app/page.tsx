@@ -316,6 +316,22 @@ export default function Home() {
             </span>
           </div>
         )}
+        {/* 手机上的页头：校招 / 实习 两个文字标签（宽屏用列表上方的分段按钮） */}
+        <div className="m-jobs-head">
+          <div className="m-tabs" role="tablist" aria-label="岗位类型">
+            <button role="tab" aria-selected={kind === "fulltime"} onClick={() => setKind("fulltime")}>
+              校招
+            </button>
+            <button role="tab" aria-selected={kind === "intern"} onClick={() => setKind("intern")}>
+              实习
+            </button>
+          </div>
+          {loaded && !error && (
+            <span className="m-jobs-count">
+              <b>{result.matches.length}</b> 个可投
+            </span>
+          )}
+        </div>
         <div className="grid3">
           <div className="col-side">
             <ResumePanel
@@ -349,7 +365,7 @@ export default function Home() {
               active={filterActive}
             />
 
-            <section className="panel" aria-label="匹配岗位">
+            <section className="panel jobs-card" aria-label="匹配岗位">
               <div className="list-head" style={{ marginBottom: 12 }}>
                 <span className="seg" role="group" aria-label="岗位类型">
                   <button aria-pressed={kind === "fulltime"} onClick={() => setKind("fulltime")}>

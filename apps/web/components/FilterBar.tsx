@@ -18,10 +18,14 @@ const CITY_FOLD = 10;
 
 export function FilterBar({ filter, setFilter, companies, cities, active }: Props) {
   const [allCities, setAllCities] = useState(false);
+  // 手机上筛选项默认收起，只露出搜索框（宽屏一直展开，见 mobile.css）
+  const [open, setOpen] = useState(false);
+  const picked =
+    filter.companies.length + filter.cities.length + (filter.withinDays ? 1 : 0) + (filter.onlySelected ? 1 : 0) + (filter.sort !== "match" ? 1 : 0);
   const toggle = (k: "companies" | "cities", v: string) => setFilter((f) => ({ ...f, [k]: flip(f[k], v) }));
 
   return (
-    <section className="panel" role="search" aria-label="检索与筛选">
+    <section className="panel filter-card" role="search" aria-label="检索与筛选">
       <div className="panel-head">
         <span className="step">3</span>
         <h2>检索岗位</h2>
@@ -33,89 +37,97 @@ export function FilterBar({ filter, setFilter, companies, cities, active }: Prop
       </div>
 
       <div className="filters">
-        <input
-          className="input search"
-          type="text"
-          placeholder="搜索岗位、公司、城市或职责关键词（空格分隔，需全部命中）"
-          aria-label="搜索岗位"
-          value={filter.query}
-          onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
-        />
+        <div className="search-row">
+          <input
+            className="input search"
+            type="text"
+            enterKeyHint="search"
+            placeholder="搜索岗位、公司、城市或职责关键词（空格分隔，需全部命中）"
+            aria-label="搜索岗位"
+            value={filter.query}
+            onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
+          />
+          <button className="m-filter-btn" aria-expanded={open} aria-controls="filter-more" onClick={() => setOpen((v) => !v)}>
+            筛选{picked ? <span>{picked}</span> : null}
+          </button>
+        </div>
 
-        <div className="filter-row">
-          <span className="lbl">公司</span>
-          <div className="chips">
-            {companies.map(({ value, count }) => (
+        <div className={`filter-more${open ? " open" : ""}`} id="filter-more">
+          <div className="filter-row">
+            <span className="lbl">公司</span>
+            <div className="chips">
+              {companies.map(({ value, count }) => (
+                <button
+                  key={value}
+                  className="chip"
+                  aria-pressed={filter.companies.includes(value)}
+                  onClick={() => toggle("companies", value)}
+                >
+                  <span className="dot" style={{ background: `hsl(${companyHue(value)} 65% 52%)` }} />
+                  {companyName(value)} <span className="n">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="filter-row">
+            <span className="lbl">城市</span>
+            <div className="chips">
+              {(allCities ? cities : cities.slice(0, CITY_FOLD)).map(({ value, count }) => (
+                <button
+                  key={value}
+                  className="chip"
+                  aria-pressed={filter.cities.includes(value)}
+                  onClick={() => toggle("cities", value)}
+                >
+                  {value} <span className="n">{count}</span>
+                </button>
+              ))}
+              {cities.length > CITY_FOLD && (
+                <button className="chip" onClick={() => setAllCities((v) => !v)}>
+                  {allCities ? "收起" : `更多 ${cities.length - CITY_FOLD} 个`}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="filter-row">
+            <span className="lbl">发布</span>
+            <div className="chips">
+              <button className="chip" aria-pressed={filter.withinDays === 0} onClick={() => setFilter((f) => ({ ...f, withinDays: 0 }))}>
+                不限
+              </button>
+              {WITHIN_OPTIONS.map((d) => (
+                <button key={d} className="chip" aria-pressed={filter.withinDays === d} onClick={() => setFilter((f) => ({ ...f, withinDays: d }))}>
+                  {d} 天内
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="filter-row">
+            <span className="lbl">排序</span>
+            <div className="seg" role="group" aria-label="排序方式">
+              <button aria-pressed={filter.sort === "match"} onClick={() => setFilter((f) => ({ ...f, sort: "match" }))}>
+                匹配度优先
+              </button>
+              <button aria-pressed={filter.sort === "new"} onClick={() => setFilter((f) => ({ ...f, sort: "new" }))}>
+                最新发布
+              </button>
+            </div>
+          </div>
+
+          <div className="filter-row">
+            <span className="lbl">其他</span>
+            <div className="chips">
               <button
-                key={value}
                 className="chip"
-                aria-pressed={filter.companies.includes(value)}
-                onClick={() => toggle("companies", value)}
+                aria-pressed={filter.onlySelected}
+                onClick={() => setFilter((f) => ({ ...f, onlySelected: !f.onlySelected }))}
               >
-                <span className="dot" style={{ background: `hsl(${companyHue(value)} 65% 52%)` }} />
-                {companyName(value)} <span className="n">{count}</span>
+                只看已选
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="lbl">城市</span>
-          <div className="chips">
-            {(allCities ? cities : cities.slice(0, CITY_FOLD)).map(({ value, count }) => (
-              <button
-                key={value}
-                className="chip"
-                aria-pressed={filter.cities.includes(value)}
-                onClick={() => toggle("cities", value)}
-              >
-                {value} <span className="n">{count}</span>
-              </button>
-            ))}
-            {cities.length > CITY_FOLD && (
-              <button className="chip" onClick={() => setAllCities((v) => !v)}>
-                {allCities ? "收起" : `更多 ${cities.length - CITY_FOLD} 个`}
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="lbl">发布</span>
-          <div className="chips">
-            <button className="chip" aria-pressed={filter.withinDays === 0} onClick={() => setFilter((f) => ({ ...f, withinDays: 0 }))}>
-              不限
-            </button>
-            {WITHIN_OPTIONS.map((d) => (
-              <button key={d} className="chip" aria-pressed={filter.withinDays === d} onClick={() => setFilter((f) => ({ ...f, withinDays: d }))}>
-                {d} 天内
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="lbl">排序</span>
-          <div className="seg" role="group" aria-label="排序方式">
-            <button aria-pressed={filter.sort === "match"} onClick={() => setFilter((f) => ({ ...f, sort: "match" }))}>
-              匹配度优先
-            </button>
-            <button aria-pressed={filter.sort === "new"} onClick={() => setFilter((f) => ({ ...f, sort: "new" }))}>
-              最新发布
-            </button>
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="lbl">其他</span>
-          <div className="chips">
-            <button
-              className="chip"
-              aria-pressed={filter.onlySelected}
-              onClick={() => setFilter((f) => ({ ...f, onlySelected: !f.onlySelected }))}
-            >
-              只看已选
-            </button>
+            </div>
           </div>
         </div>
       </div>

@@ -13,6 +13,9 @@ html { scroll-behavior: smooth; }
 .lp-nav .spacer { flex: 1; }
 .lp-login { font-size: 14px; font-weight: 600; padding: 6px 10px; }
 @media (max-width: 800px) { .lp-links { display: none; } .lp-nav { padding: 10px 16px; } }
+/* 刘海屏安全区域：顶部让开状态栏，左右让开横屏时的刘海 */
+.lp-nav { padding-top: calc(12px + var(--sa-t)); padding-left: max(24px, calc((100vw - 1160px) / 2), var(--sa-l)); padding-right: max(24px, calc((100vw - 1160px) / 2), var(--sa-r)); }
+@media (max-width: 800px) { .lp-nav { padding: calc(10px + var(--sa-t)) max(16px, var(--sa-r)) 10px max(16px, var(--sa-l)); } }
 
 .lp-hero { position: relative; text-align: center; padding: 84px 20px 40px; overflow: hidden; }
 .lp-glow { position: absolute; inset: -120px 0 auto 0; height: 520px; z-index: 0; pointer-events: none;

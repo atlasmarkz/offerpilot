@@ -288,7 +288,8 @@
   .cta-full { display: none; }
   .cta-short { display: inline; }
   .cta-msg { order: 4; flex-basis: 100%; }
-  .col-detail .detail > .msg:last-child { padding-bottom: calc(16px + var(--sa-b)); }
+  .col-detail .detail > .msg:last-child,
+  .col-detail .detail > .detail-ai:last-child { padding-bottom: calc(16px + var(--sa-b)); }
 
   /* ---------- 投递看板 ---------- */
   .board-head, .board-list-head, .board-cols { display: none; }

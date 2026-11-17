@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const resume = normalizeResume(body.resume);
   if (!withinSize(resume)) return fail("简历内容过大", 413);
   const resumeText = resumeToText(resume);
-  if (resumeText.replace(/\s/g, "").length < 40) return fail("简历内容太少：先在简历工作台填写或上传简历，再来评估", 422);
+  if (resumeText.replace(/\s/g, "").length < 40) return fail("简历内容太少：先在“投递资料”里填写或上传简历，再来评估", 422);
   if (!job.data.description.trim() && !job.data.requirements.trim()) return fail("这个岗位没有描述，没法评估；可以粘贴岗位描述再试", 422);
 
   const granted = await gate(req, "job_fit", (k) => (typeof body[k] === "string" ? (body[k] as string) : undefined));

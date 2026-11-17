@@ -1,6 +1,7 @@
 "use client";
 
-import { PLANS, PLAN_ORDER } from "@offerpilot/shared";
+import { PLANS } from "@offerpilot/shared";
+import { PurchasePanel } from "../../components/PurchasePanel";
 import { useCallback, useEffect, useState } from "react";
 import { TopBar } from "../../components/TopBar";
 import { useRequireLogin, useSession } from "../../hooks/useSession";
@@ -108,7 +109,7 @@ export default function AccountPage() {
               </dd>
               <dt>在线简历</dt>
               <dd>
-                <a href="/resume">打开简历工作台</a>
+                <a href="/resume">打开投递资料</a>
               </dd>
             </dl>
           </section>
@@ -169,32 +170,7 @@ export default function AccountPage() {
             )}
           </section>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>会员等级</h2>
-              <span className="hint">价格与支付即将开通</span>
-            </div>
-            <div className="plan-compare">
-              {PLAN_ORDER.map((id) => (
-                <div key={id} className={`plan-box${id === plan ? " cur" : ""}`}>
-                  <h3>
-                    {PLANS[id].name} {id === plan && <span className="badge">当前</span>}
-                  </h3>
-                  <div style={{ color: "var(--muted)" }}>{PLANS[id].tagline}</div>
-                  <ul>
-                    <li>附件简历 {PLANS[id].attachments} 份</li>
-                    <li>{`每月 ${PLANS[id].monthlyQuota} 次 AI`}</li>
-                    <li>看板 {PLANS[id].boardItems} 条</li>
-                    {PLANS[id].features
-                      .filter((f) => f.soon)
-                      .map((f) => (
-                        <li key={f.text}>{f.text}（即将推出）</li>
-                      ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
+          <PurchasePanel plan={plan} periodEnd={u.periodEnd ?? null} onPaid={() => void session.refreshUsage()} />
 
           <section className="panel">
             <div className="panel-head">

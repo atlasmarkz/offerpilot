@@ -242,7 +242,7 @@ export default function Home() {
   async function fitJob(job: Job): Promise<{ fit: FitResult; note?: string } | string> {
     if (!consent) return "请先在左侧“上传简历”处勾选同意把简历内容发送给大模型服务";
     const resume = await currentResume();
-    if (isBlankResume(resume)) return "还没有在线简历：先在左侧上传简历，或到“简历工作台”填写";
+    if (isBlankResume(resume)) return "还没有在线简历：先在左侧上传简历，或到“投递资料”里填写";
     const r = job.requirements;
     const requirements = [
       r.minDegree && `学历：${{ bachelor: "本科", master: "硕士", phd: "博士" }[r.minDegree]}及以上`,

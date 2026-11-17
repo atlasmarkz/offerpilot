@@ -42,6 +42,7 @@ export default function ResumePage() {
   const [suggestions, setSuggestions] = useState<Suggestions>();
   const [suggestNote, setSuggestNote] = useState<string>();
   const [ownModel, setOwnModel] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const session = useSession();
   const allowed = useRequireLogin(session);
@@ -204,7 +205,7 @@ export default function ResumePage() {
             <label className="consent" style={{ margin: 0 }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
-                我同意把简历内容发送给大模型服务做解析和建议（联系方式不会发送）。详见<a href="/privacy">隐私说明</a>。
+                我同意把简历内容发送给大模型服务做解析（以及下面的 AI 工具，联系方式不会发送）。详见<a href="/privacy">隐私说明</a>。
               </span>
             </label>
           </div>
@@ -224,23 +225,9 @@ export default function ResumePage() {
                 }}
               />
             </label>
-            <input
-              className="input"
-              style={{ maxWidth: 220 }}
-              placeholder="目标岗位（可选，如 后端开发）"
-              aria-label="目标岗位"
-              value={targetRoleSafe(targetRole)}
-              onChange={(e) => setTargetRole(e.target.value)}
-            />
-            <button className="btn sm" onClick={() => void onSuggest()} disabled={!consent || suggesting || blank}>
-              {suggesting ? "分析中…" : "✨ 获取修改建议"}
-            </button>
             <button className="btn ghost sm" onClick={() => window.print()} disabled={blank}>
               ⬇ 导出 PDF
             </button>
-            <span className="msg" style={{ margin: 0, color: "var(--faint)" }}>
-              {costHint}
-            </span>
           </div>
           {msg && (
             <p className={`msg ${msg.ok ? "ok" : "err"}`} role="status" style={{ marginBottom: 0 }}>
@@ -259,20 +246,42 @@ export default function ResumePage() {
 
         <div className="resume-grid">
           <div className="no-print">
-            <SuggestPanel suggestions={suggestions} note={suggestNote} />
-            <PasteJobFit
-              consent={consent}
-              blank={blank}
-              costHint={costHint}
-              evaluate={onFit}
-              tailor={onTailor}
-              resume={resume}
-              onSaveAs={canSaveAs ? (data, name) => docs.create(name, data) : undefined}
-              saveAsBlocked={saveAsBlocked}
-              onApply={(data) => setResume({ ...data, contact: resume.contact })}
-            />
             <PrivateInfoPanel info={priv} onChange={updatePriv} />
             <ResumeEditor resume={resume} onChange={setResume} />
+            {/* AI 工具：默认收起，不占主流程；从岗位页“按这个岗位定制简历”跳过来时自动展开 */}
+            <details className="panel ai-tools" open={aiOpen} onToggle={(e) => setAiOpen((e.target as HTMLDetailsElement).open)}>
+              <summary>
+                <h2>AI 工具</h2>
+                <span className="hint">简历修改建议 · 按岗位评估与定制{costHint ? ` · ${costHint}` : ""}</span>
+              </summary>
+              <div className="toolbar-row" style={{ marginTop: 12 }}>
+                <input
+                  className="input"
+                  style={{ maxWidth: 220 }}
+                  placeholder="目标岗位（可选，如 后端开发）"
+                  aria-label="目标岗位"
+                  value={targetRoleSafe(targetRole)}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                />
+                <button className="btn sm ghost" onClick={() => void onSuggest()} disabled={!consent || suggesting || blank}>
+                  {suggesting ? "分析中…" : "获取修改建议"}
+                </button>
+                {!consent && <span className="msg" style={{ margin: 0, color: "var(--faint)" }}>先勾选上方的同意</span>}
+              </div>
+              <SuggestPanel suggestions={suggestions} note={suggestNote} />
+              <PasteJobFit
+                consent={consent}
+                blank={blank}
+                costHint={costHint}
+                evaluate={onFit}
+                tailor={onTailor}
+                resume={resume}
+                onSaveAs={canSaveAs ? (data, name) => docs.create(name, data) : undefined}
+                saveAsBlocked={saveAsBlocked}
+                onApply={(data) => setResume({ ...data, contact: resume.contact })}
+                onHandoff={() => setAiOpen(true)}
+              />
+            </details>
           </div>
           <div className="resume-preview-col">
             <ResumePreview resume={resume} />

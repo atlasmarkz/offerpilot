@@ -9,3 +9,6 @@ dist
 .next
 next-env.d.ts
 *.tsbuildinfo
+
+# 服务器部署用的环境变量（含密钥）
+deploy/.env

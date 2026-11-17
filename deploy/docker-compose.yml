@@ -1,0 +1,46 @@
+# OfferPilot 生产部署：网页端 + Caddy（自动申请 / 续期 HTTPS 证书）。
+# 在服务器上：
+#   cd deploy && cp .env.example .env && 编辑 .env
+#   docker compose up -d --build        # 在服务器上构建镜像
+#   （或者先 docker login ghcr.io，再 docker compose pull && docker compose up -d，用 GitHub 上构建好的镜像）
+# 详见 DEPLOY.md“部署到自己的服务器（Docker）”。
+
+services:
+  web:
+    # 默认在服务器上用仓库根目录的 Dockerfile 构建；想用 GitHub 构建好的镜像，在 .env 里设 WEB_IMAGE
+    image: ${WEB_IMAGE:-offerpilot-web:latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    env_file: .env
+    restart: unless-stopped
+    # 只在 Docker 内部网络可见，不对公网开端口：所有请求都必须经过 Caddy，
+    # 这样客户端 IP（X-Forwarded-For）由 Caddy 写入，没法伪造来绕过频率限制
+    expose:
+      - "3000"
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?在 deploy/.env 里设置 DOMAIN（你的域名）}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
